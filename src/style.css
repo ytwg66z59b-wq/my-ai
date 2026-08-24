@@ -23,6 +23,7 @@
 
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
 }
 
 body {
@@ -143,8 +144,10 @@ p {
 }
 
 .menu-toggle {
-  width: 2.5rem;
-  height: 2.5rem;
+  position: relative;
+  z-index: 110;
+  width: 2.75rem;
+  height: 2.75rem;
   display: grid;
   place-content: center;
   gap: 7px;
@@ -250,8 +253,8 @@ p {
   position: relative;
   min-height: 100svh;
   display: flex;
-  align-items: flex-end;
-  padding: 7.5rem 1.5rem 5rem;
+  align-items: center;
+  padding: 6.5rem 1.5rem 4.5rem;
   overflow: hidden;
 }
 
@@ -347,18 +350,18 @@ p {
 .hero-brand {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: clamp(1.5rem, 4.5vw, 2.75rem);
+  font-size: clamp(1.85rem, 5.5vw, 3.25rem);
   letter-spacing: 0.28em;
-  margin-bottom: 1.75rem;
+  margin-bottom: 1.35rem;
 }
 
 .hero-title {
   font-family: var(--font-body);
   font-weight: 500;
-  font-size: clamp(2.4rem, 7vw, 4.75rem);
-  line-height: 1.15;
+  font-size: clamp(2.1rem, 6.2vw, 4.25rem);
+  line-height: 1.2;
   letter-spacing: 0.04em;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
 }
 
 .hero-lead {
@@ -436,6 +439,10 @@ p {
 /* Sections */
 .section {
   padding: var(--space-section) 1.5rem;
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+  background: var(--bg);
 }
 
 .section-inner {

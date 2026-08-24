@@ -17,6 +17,7 @@ const closeMenu = () => {
   menuToggle.setAttribute("aria-expanded", "false");
   menuToggle.setAttribute("aria-label", "メニューを開く");
   mobileNav.hidden = true;
+  mobileNav.classList.remove("is-open");
   document.body.classList.remove("menu-open");
 };
 
@@ -25,10 +26,13 @@ const openMenu = () => {
   menuToggle.setAttribute("aria-expanded", "true");
   menuToggle.setAttribute("aria-label", "メニューを閉じる");
   mobileNav.hidden = false;
+  mobileNav.classList.add("is-open");
   document.body.classList.add("menu-open");
 };
 
-menuToggle?.addEventListener("click", () => {
+menuToggle?.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
   const expanded = menuToggle.getAttribute("aria-expanded") === "true";
   if (expanded) {
     closeMenu();
