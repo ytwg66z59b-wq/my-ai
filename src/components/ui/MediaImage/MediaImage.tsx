@@ -28,7 +28,7 @@ export function MediaImage({
       className={[styles.frame, rounded ? styles.rounded : "", className]
         .filter(Boolean)
         .join(" ")}
-      style={{ aspectRatio }}
+      style={{ ["--media-aspect" as string]: aspectRatio }}
     >
       <Image
         className={[

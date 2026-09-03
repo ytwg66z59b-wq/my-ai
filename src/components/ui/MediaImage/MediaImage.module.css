@@ -3,6 +3,7 @@
   width: 100%;
   overflow: hidden;
   background: var(--color-placeholder);
+  aspect-ratio: var(--media-aspect, 16 / 9);
 }
 
 .rounded {
