@@ -1,293 +1,293 @@
-const painPoints = [
-  "「良い商品なのに、なかなか売れない」",
-  "「会社のことをもっと知ってほしい」",
-  "「商品の説明だけでは他社との差が伝わらない」",
-  "「SNSをやっているけど商品紹介ばかりになっている」",
-  "「仕事への想いをもっと知ってもらいたい」",
-  "「価格だけで比較されてしまう」",
-];
+import { LINE_URL, cases, filmSubjects, funnel, knowSteps, nav, pains, processSteps, services, supports, videoTraits, videoTypes } from "./constants";
+import { useReveal, useScrollVideos } from "./useReveal";
 
-const videoTypes = [
-  { title: "会社紹介", desc: "会社・スタッフ・雰囲気を伝える。" },
-  { title: "代表インタビュー", desc: "経営者の想いや考えを伝える。" },
-  { title: "スタッフ紹介", desc: "社員一人ひとりの人柄を伝える。" },
-  { title: "商品・サービス紹介", desc: "商品だけでなく、背景まで伝える。" },
-  { title: "採用動画", desc: "「この会社で働きたい」をつくる。" },
-  { title: "SNS動画", desc: "まず会社や人に興味を持ってもらう。" },
-];
+function LineButton({
+  className = "",
+  children = "公式LINEで相談する",
+}: {
+  className?: string;
+  children?: string;
+}) {
+  return (
+    <a className={`btn-line ${className}`} href={LINE_URL} target="_blank" rel="noreferrer">
+      <LineIcon />
+      {children}
+    </a>
+  );
+}
 
-const processSteps = [
-  { num: "01", title: "知る", desc: "あなたの会社・商品・仕事を知る。" },
-  { num: "02", title: "話す", desc: "想いやこだわりを聞く。" },
-  { num: "03", title: "整理する", desc: "何を伝えるべきかを決める。" },
-  { num: "04", title: "構成する", desc: "見た人にどう感じてもらうかを設計。" },
-  {
-    num: "05",
-    title: "撮影する",
-    desc: "人・仕事・商品を撮影する際のポイントをお伝えします。（自社でして頂きます。）",
-  },
-  { num: "06", title: "編集する", desc: "映像・音・言葉を組み合わせる。" },
-  { num: "07", title: "届ける", desc: "SNS・Web・LPなどで活用。" },
-];
+function LineIcon() {
+  return (
+    <svg viewBox="0 0 40 40" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M20 3C10.6 3 3 9.7 3 18c0 5 2.8 9.5 7.2 12.4l-1 6.6 6.3-3.4c1.5.4 3 .6 4.5.6 9.4 0 17-6.7 17-15C37 9.7 29.4 3 20 3z"
+      />
+    </svg>
+  );
+}
 
-const LINE_URL = "https://lin.ee/XXXXXXX"; // 差し替え用プレースホルダー
+function MediaFrame({
+  label,
+  ratio = "16 / 9",
+  className = "",
+}: {
+  label: string;
+  ratio?: string;
+  className?: string;
+}) {
+  return (
+    <figure className={`media-frame ${className}`} style={{ aspectRatio: ratio }}>
+      <span className="media-play">▶</span>
+      <figcaption>{label}</figcaption>
+    </figure>
+  );
+}
 
 export default function App() {
+  useReveal();
+  useScrollVideos();
+
   return (
     <div className="lp">
-      {/* ========== 01｜FV ========== */}
-      <header className="fv">
-        <div className="fv-inner">
-          <p className="fv-pre">最初から商品説明をしすぎない。</p>
-          <h1 className="fv-h1">
-            商品を売る前に、
-            <br />
-            <em>あなたのことを知ってもらう。</em>
-          </h1>
-          <p className="fv-sub">
-            人柄・想い・仕事へのこだわりまで伝える動画制作。
-          </p>
-          <p className="fv-body">
-            ただ、商品の魅力を並べるだけじゃない。
-            <br />
-            <strong>「どんな人が、この商品を作っているのか」</strong>
-            まで伝える。
-          </p>
-          <a className="btn btn-line" href={LINE_URL} target="_blank" rel="noreferrer">
-            動画制作について相談する
-          </a>
-        </div>
+      <header className="site-header">
+        <a className="logo" href="#top">
+          HIDAKA
+        </a>
+        <nav className="header-nav" aria-label="ページ内ナビ">
+          {nav.slice(0, 4).map((item) => (
+            <a key={item.href} href={item.href}>
+              {item.label}
+            </a>
+          ))}
+        </nav>
+        <a className="header-line" href={LINE_URL} target="_blank" rel="noreferrer">
+          公式LINE
+        </a>
       </header>
 
-      <main>
-        {/* ========== 02｜自己紹介 ========== */}
-        <section className="section sec-intro" id="about">
-          <div className="inner">
-            <div className="intro-grid">
-              <div className="intro-photo">
-                <div className="photo-placeholder">
-                  <span>顔写真</span>
-                </div>
-                <div className="video-placeholder">
-                  <span>▶ 短い自己紹介動画</span>
-                </div>
-              </div>
-              <div className="intro-copy">
-                <p className="sec-label">はじめまして</p>
-                <h2>
-                  動画をつくっている、
-                  <br />
-                  りょうまです。
-                </h2>
-                <p>
-                  僕は、動画を「商品を売るためだけのもの」だとは考えていません。
-                </p>
-                <p>
-                  その会社で働いている人。
-                  <br />
-                  商品を作っている人。
-                  <br />
-                  お客様と向き合っている人。
-                  <br />
-                  そこにある想いやこだわり。
-                </p>
-                <p>
-                  そういうものまで伝えられるのが、動画だと思っています。
-                </p>
-                <a className="btn btn-text" href="#story">
-                  僕についてもっと見る →
-                </a>
-              </div>
+      <main id="top">
+        <section className="hero">
+          <div className="hero-copy reveal">
+            <p className="kicker">VIDEO / PEOPLE / STORY</p>
+            <h1>
+              良い商品なのに、
+              <br />
+              なぜか売れない。
+            </h1>
+            <p className="hero-lead">
+              商品を売る前に、
+              <br />
+              「人」を知ってもらう。
+            </p>
+            <p className="hero-body">
+              動画制作を通して、
+              <br />
+              会社・商品の魅力だけではなく、
+              <br />
+              そこにいる「人」まで伝えます。
+            </p>
+            <div className="hero-cta">
+              <LineButton />
+              <p className="cta-note">まずは相談だけでも大丈夫です</p>
+            </div>
+          </div>
+          <div className="hero-visual reveal reveal-delay-2">
+            <MediaFrame label="日高の写真 / 短い紹介動画" ratio="4 / 5" className="hero-media" />
+          </div>
+        </section>
+
+        <section className="section section-cream" id="about">
+          <div className="about-grid">
+            <div className="reveal">
+              <MediaFrame label="大きな顔写真 / 自己紹介動画" ratio="3 / 4" />
+            </div>
+            <div className="read reveal reveal-delay-1">
+              <p className="kicker">ABOUT</p>
+              <h2>
+                はじめまして。
+                <br />
+                動画をつくっている、日高です。
+              </h2>
+              <p>
+                僕は、動画を「商品を売るためだけのもの」だとは考えていません。
+              </p>
+              <p>
+                その会社で働いている人。
+                <br />
+                商品を作っている人。
+                <br />
+                お客様と向き合っている人。
+              </p>
+              <p>
+                そこにある想いやこだわり。
+                <br />
+                そういうものまで伝えられるのが、動画だと思っています。
+              </p>
+              <a className="text-link" href="#story">
+                僕について知る
+              </a>
             </div>
           </div>
         </section>
 
-        {/* ========== 03｜ストーリー ========== */}
-        <section className="section sec-story" id="story">
-          <div className="inner inner-narrow">
-            <p className="sec-label">なぜ、この仕事を</p>
-            <h2>
-              どうして僕は、
-              <br />
-              「人を伝える動画」を
-              <br />
-              作っているのか。
-            </h2>
-            <div className="story-video-placeholder">
-              <span>▶ 「僕がこの仕事をしている理由」を話す動画</span>
+        <section className="section section-dark" id="story">
+          <div className="stack">
+            <div className="read reveal">
+              <p className="kicker light">WHY</p>
+              <h2>
+                どうして僕は、
+                <br />
+                「人を伝える動画」を作っているのか。
+              </h2>
             </div>
-            <div className="story-points">
-              <p>なぜ動画を始めたのか。</p>
-              <p>仕事をしていて何を感じたのか。</p>
-              <p>なぜ「人」に注目するようになったのか。</p>
-              <p>どんな会社を支援したいのか。</p>
-              <p>どんな動画を作りたいのか。</p>
+            <div className="reveal reveal-delay-1">
+              <MediaFrame label="日高が話している動画" className="media-wide" />
+            </div>
+            <div className="read reveal reveal-delay-2">
+              <p>僕は、いろんな会社やお店を見ていて、</p>
+              <p className="quote">「良い商品なのに、その魅力が伝わっていない」</p>
+              <p>と感じることがあります。</p>
+              <p>
+                商品の説明はできる。
+                <br />
+                サービスの特徴も説明できる。
+              </p>
+              <p>でも、</p>
+              <p className="quote">「どんな人が、この商品を作っているんだろう。」</p>
+              <p className="quote">「なぜ、この仕事をしているんだろう。」</p>
+              <p>そこまで伝わっていない。</p>
+              <p>
+                だから僕は、
+                <br />
+                もっと「人」を見せてもいいんじゃないか。
+                <br />
+                と思っています。
+              </p>
             </div>
           </div>
         </section>
 
-        {/* ========== 04｜課題提起 ========== */}
-        <section className="section sec-problem">
-          <div className="inner inner-narrow">
-            <p className="sec-label">僕が感じていること</p>
+        <section className="section" id="thinking">
+          <div className="read reveal">
+            <p className="kicker">QUESTION</p>
             <h2>
               良い商品なのに、
               <br />
-              その魅力が伝わっていない会社が
-              <br />
-              たくさんある。
+              「売れない」のはなぜでしょうか。
             </h2>
-            <p className="body-text">
-              商品の説明はできる。サービスの特徴も説明できる。
+            <p>商品の品質が悪いからとは限りません。</p>
+            <p>価格が高いからとも限りません。</p>
+            <p>
+              そもそも、
               <br />
-              でも——
+              <strong>「知られていない」</strong>
+              <br />
+              ということがあります。
             </p>
-            <div className="bubble-group">
-              <div className="bubble">「この会社ってどんな会社なんだろう？」</div>
-              <div className="bubble">「この人たちは、なんでこの仕事をしているんだろう？」</div>
-            </div>
-            <p className="body-text accent-text">
-              そこまで伝わっていない。
+            <p>
+              そして、知ってもらうためには、
               <br />
-              だから僕は、
-              <br />
-              <strong>「もっと人を見せてもいいんじゃないか」</strong>
-              と思っています。
+              商品の情報だけでは足りないことがあります。
             </p>
           </div>
         </section>
 
-        {/* ========== 05｜お悩み ========== */}
-        <section className="section sec-pain">
-          <div className="inner">
-            <p className="sec-label">こんなお悩みありませんか？</p>
-            <h2>こんなこと、感じていませんか？</h2>
-            <ul className="pain-list">
-              {painPoints.map((p) => (
-                <li key={p}>{p}</li>
+        <section className="section section-cream">
+          <div className="stack">
+            <div className="read reveal">
+              <p className="kicker">PAIN</p>
+              <h2>こんなことを感じていませんか？</h2>
+            </div>
+            <div className="card-grid six">
+              {pains.map((pain, index) => (
+                <article className={`card reveal reveal-delay-${(index % 3) + 1}`} key={pain}>
+                  <p>{pain}</p>
+                </article>
               ))}
-            </ul>
-            <p className="pain-close">
-              <strong>本当は、もっと伝えたいことがある。</strong>
-            </p>
-          </div>
-        </section>
-
-        {/* ========== 06｜なぜ伝わらないか ========== */}
-        <section className="section sec-why-not">
-          <div className="inner inner-narrow">
-            <p className="sec-label">なぜ伝わらないのか</p>
-            <h2>商品のことばかり<br />伝えていませんか？</h2>
-            <div className="tag-row">
-              <span className="tag">商品の特徴</span>
-              <span className="tag">価格</span>
-              <span className="tag">機能</span>
-              <span className="tag">サービス内容</span>
             </div>
-            <p className="body-text">
-              もちろん必要です。
-              <br />
-              でも、それだけでは——
-            </p>
-            <p className="emphasis">
-              「あなたから買う理由」
-              <br />
-              にはなりません。
-            </p>
+            <p className="big-line reveal">本当は、もっと伝えたいことがある。</p>
           </div>
         </section>
 
-        {/* ========== 07｜核心メッセージ ========== */}
-        <section className="section sec-core">
-          <div className="inner inner-narrow center">
-            <p className="sec-label">僕が大切にしている考え方</p>
-            <h2 className="core-message">
+        <section className="section">
+          <div className="read reveal">
+            <p className="kicker">BELIEF</p>
+            <h2>
               商品を売る前に、
               <br />
-              <em>人を知ってもらう。</em>
+              「人」を知ってもらう。
             </h2>
-            <ul className="core-list">
-              <li>どんな人なのか。</li>
-              <li>なぜこの仕事をしているのか。</li>
-              <li>何を大切にしているのか。</li>
-              <li>どんな想いで商品を作っているのか。</li>
-              <li>どんなお客様と向き合っているのか。</li>
-            </ul>
-            <p className="body-text">それを知ってもらう。</p>
+            <p>どんな人なのか。</p>
+            <p>なぜ、この仕事をしているのか。</p>
+            <p>何を大切にしているのか。</p>
+            <p>どんな想いで商品を作っているのか。</p>
+            <p>どんなお客様と向き合っているのか。</p>
+            <p>それを知ってもらう。</p>
           </div>
         </section>
 
-        {/* ========== 08｜なぜ「人」か ========== */}
-        <section className="section sec-flow">
-          <div className="inner">
-            <p className="sec-label">なぜ「人」なのか</p>
-            <h2>
-              人を知ってもらうと、
-              <br />
-              「この人から買いたい」が生まれる。
-            </h2>
-            <div className="flow-steps">
-              {[
-                "知らない会社",
-                "動画を見る",
-                "「こんな人がやってるんだ」",
-                "「この考え方、好きだな」",
-                "「この会社ちょっと気になる」",
-                "「ここから買ってみようかな」",
-              ].map((s, i, arr) => (
-                <div className="flow-step" key={s}>
-                  <span className={i === arr.length - 1 ? "flow-label highlight" : "flow-label"}>{s}</span>
-                  {i < arr.length - 1 && <span className="flow-arrow">↓</span>}
+        <section className="section section-cream">
+          <div className="stack">
+            <div className="read reveal">
+              <p className="kicker">CHANGE</p>
+              <h2>人を知ることで生まれる変化</h2>
+            </div>
+            <div className="step-track reveal">
+              {knowSteps.map((step, index) => (
+                <div className="step-item" key={step.num}>
+                  <span className="step-num">{step.num}</span>
+                  <strong>{step.label}</strong>
+                  {index < knowSteps.length - 1 && <span className="step-arrow">→</span>}
                 </div>
               ))}
-              <div className="flow-step">
-                <span className="flow-arrow">↓</span>
-              </div>
-              <div className="flow-final">
-                「この人だからお願いしたい」
-              </div>
             </div>
+            <p className="big-line reveal">「この人だからお願いしたい。」</p>
           </div>
         </section>
 
-        {/* ========== 09｜動画だから ========== */}
-        <section className="section sec-video-why">
-          <div className="inner inner-narrow">
-            <p className="sec-label">動画だから伝えられる</p>
-            <h2>文章だけでは<br />伝わらないものがあります。</h2>
-            <div className="keyword-grid">
-              {["顔", "声", "表情", "話し方", "仕草", "仕事をしている姿", "その人が話す言葉"].map((k) => (
-                <span className="keyword" key={k}>{k}</span>
+        <section className="section">
+          <div className="stack">
+            <div className="read reveal">
+              <p className="kicker">WHY VIDEO</p>
+              <h2>
+                文章だけでは、
+                <br />
+                伝わらないものがあります。
+              </h2>
+            </div>
+            <div className="reveal">
+              <MediaFrame label="表情・声・現場の空気が伝わる映像" />
+            </div>
+            <div className="card-grid three">
+              {videoTraits.map((item, index) => (
+                <article className={`card reveal reveal-delay-${(index % 3) + 1}`} key={item.title}>
+                  <h3>{item.title}</h3>
+                  <p>{item.desc}</p>
+                </article>
               ))}
             </div>
-            <p className="body-text">
-              これらが合わさることで、
+            <p className="big-line reveal">
+              動画は、
               <br />
-              <strong>「どんな人なのか」が伝わる。</strong>
-              <br />
-              だから僕は、動画を使います。
+              「どんな人なのか」まで伝えられる。
             </p>
           </div>
         </section>
 
-        {/* ========== 10｜動画で伝えるもの ========== */}
-        <section className="section sec-what">
-          <div className="inner">
-            <p className="sec-label">動画で伝えるもの</p>
-            <h2>
-              僕が撮りたいのは、
-              <br />
-              「商品」だけではありません。
-            </h2>
-            <div className="what-grid">
-              {[
-                { title: "人柄", desc: "その人らしさ。" },
-                { title: "想い", desc: "なぜ、この仕事をしているのか。" },
-                { title: "こだわり", desc: "何を大切にして仕事をしているのか。" },
-                { title: "ストーリー", desc: "なぜ、この商品・サービスが生まれたのか。" },
-                { title: "空気感", desc: "その会社・お店にしかない雰囲気。" },
-              ].map((item) => (
-                <article className="what-card" key={item.title}>
+        <section className="section section-cream" id="works">
+          <div className="stack">
+            <div className="read reveal">
+              <p className="kicker">WHAT I FILM</p>
+              <h2>
+                僕が撮りたいのは、
+                <br />
+                「商品」だけではありません。
+              </h2>
+            </div>
+            <div className="card-grid five">
+              {filmSubjects.map((item, index) => (
+                <article className={`card card-large reveal reveal-delay-${(index % 3) + 1}`} key={item.title}>
                   <h3>{item.title}</h3>
                   <p>{item.desc}</p>
                 </article>
@@ -296,295 +296,375 @@ export default function App() {
           </div>
         </section>
 
-        {/* ========== 11｜動画あり・なし比較 ========== */}
-        <section className="section sec-compare">
-          <div className="inner">
-            <p className="sec-label">動画があると何が変わるのか</p>
-            <div className="compare-grid">
-              <div className="compare-col compare-before">
-                <h3>動画がないと</h3>
-                <div className="compare-flow">
-                  {[
-                    "「どんな会社か分からない」",
-                    "商品だけを見る",
-                    "価格・条件で比較する",
-                    "他社に流れる",
-                  ].map((s, i, arr) => (
-                    <div key={s}>
-                      <p>{s}</p>
-                      {i < arr.length - 1 && <span className="cmp-arrow">↓</span>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="compare-col compare-after">
-                <h3>人が伝わる動画があると</h3>
-                <div className="compare-flow">
-                  {[
-                    "「こんな人がやってるんだ」",
-                    "「なんか好きだな」",
-                    "「もっと知りたい」",
-                    "「ここにお願いしたい」",
-                  ].map((s, i, arr) => (
-                    <div key={s}>
-                      <p>{s}</p>
-                      {i < arr.length - 1 && <span className="cmp-arrow">↓</span>}
-                    </div>
-                  ))}
-                  <div>
-                    <span className="cmp-arrow">↓</span>
-                    <p className="compare-final">「またここで買いたい」</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+        <section className="section">
+          <div className="compare">
+            <article className="compare-col muted reveal">
+              <h3>動画がない場合</h3>
+              <p>会社のことが分からない。</p>
+              <span>↓</span>
+              <p>商品だけを見る。</p>
+              <span>↓</span>
+              <p>価格・条件で比較する。</p>
+              <span>↓</span>
+              <p>他社に流れる。</p>
+            </article>
+            <article className="compare-col emphasis reveal reveal-delay-2">
+              <h3>人が伝わる動画がある場合</h3>
+              <p>「こんな人がやっているんだ。」</p>
+              <span>↓</span>
+              <p>「この考え方、好きだな。」</p>
+              <span>↓</span>
+              <p>「もっと知りたい。」</p>
+              <span>↓</span>
+              <p>「ここにお願いしたい。」</p>
+              <span>↓</span>
+              <p>「またここで買いたい。」</p>
+            </article>
           </div>
         </section>
 
-        {/* ========== 12｜動画の目的 ========== */}
-        <section className="section sec-purpose">
-          <div className="inner inner-narrow center">
-            <p className="sec-label">動画の目的</p>
+        <section className="section section-ink">
+          <div className="role reveal">
+            <p className="kicker light">ROLE</p>
             <h2>
               動画の目的は、
               <br />
               「いきなり売ること」ではありません。
             </h2>
-            <p className="emphasis">「もっと知りたい」を作ること。</p>
+            <p className="role-accent">「もっと知りたい」をつくること。</p>
             <div className="funnel">
-              {["知る", "興味を持つ", "信頼する", "買う", "ファンになる", "また買う", "誰かに紹介する"].map((s, i, arr) => (
-                <div className="funnel-row" key={s}>
-                  <span>{s}</span>
-                  {i < arr.length - 1 && <span className="funnel-arrow">↓</span>}
+              {funnel.map((item, index) => (
+                <div key={item}>
+                  <span>{item}</span>
+                  {index < funnel.length - 1 && <i>↓</i>}
                 </div>
               ))}
             </div>
-            <p className="body-text">この流れを作っていく。</p>
           </div>
         </section>
 
-        {/* ========== 13｜競合差別化 ========== */}
-        <section className="section sec-diff">
-          <div className="inner inner-narrow">
-            <p className="sec-label">僕が作る動画は何が違うのか</p>
+        <section className="section">
+          <div className="read reveal">
+            <p className="kicker">STANCE</p>
             <h2>
               「かっこいい動画」を作るだけなら、
               <br />
               僕じゃなくてもいい。
             </h2>
-            <p className="body-text">
-              もちろん、映像の綺麗さ。編集のクオリティ。音楽。デザイン。それも大切。
+            <p>もちろん、</p>
+            <p>
+              映像の綺麗さ。
               <br />
-              でも僕が一番大切にするのは——
-            </p>
-            <p className="emphasis">
-              「この動画を見た人に、
+              編集のクオリティ。
               <br />
-              何を感じてほしいのか。」
+              音楽。
+              <br />
+              デザイン。
             </p>
+            <p>それも大切です。</p>
+            <p>でも僕が一番大切にするのは、</p>
+            <p className="quote">「この動画を見た人に、何を感じてほしいのか。」</p>
+            <p>です。</p>
           </div>
         </section>
 
-        {/* ========== 14｜撮る前を大切に ========== */}
-        <section className="section sec-before">
-          <div className="inner inner-narrow">
-            <p className="sec-label">だから「撮る前」を大切にする</p>
-            <h2>
-              僕は、撮影する前に
-              <br />
-              たくさん話を聞きます。
-            </h2>
-            <ul className="listen-list">
-              <li>会社のこと。</li>
-              <li>商品について。</li>
-              <li>仕事のこと。</li>
-              <li>これまでのこと。</li>
-              <li>これからのこと。</li>
-            </ul>
-            <p className="body-text">そして——</p>
-            <div className="bubble bubble-alone">
-              「なぜ、この仕事をしているんですか？」
+        <section className="section section-cream">
+          <div className="listen-grid">
+            <div className="reveal">
+              <MediaFrame label="話を聞いている現場写真" ratio="4 / 5" />
             </div>
-            <p className="body-text">
-              まで聞きたい。
-              <br />
-              そこで初めて、
-              <br />
-              <strong>「この会社ならではの動画」</strong>
-              が作れると思っています。
-            </p>
+            <div className="read reveal reveal-delay-1">
+              <p className="kicker">BEFORE SHOOTING</p>
+              <h2>
+                僕は、撮影する前に
+                <br />
+                たくさん話を聞きます。
+              </h2>
+              <p>会社のこと。</p>
+              <p>商品について。</p>
+              <p>仕事のこと。</p>
+              <p>これまでのこと。</p>
+              <p>これからのこと。</p>
+              <p>そして、</p>
+              <p className="quote">「なぜ、この仕事をしているんですか？」</p>
+              <p>まで聞きたい。</p>
+              <p>
+                そこで初めて、
+                <br />
+                「この会社ならではの動画」
+                <br />
+                が作れると考えています。
+              </p>
+            </div>
           </div>
         </section>
 
-        {/* ========== 15｜制作の流れ ========== */}
-        <section className="section sec-process" id="process">
-          <div className="inner">
-            <p className="sec-label">制作の流れ</p>
-            <h2>ただ撮影するだけではありません。</h2>
-            <div className="process-list">
-              {processSteps.map((step, i) => (
-                <div className="process-item" key={step.num}>
-                  <div className="process-num">{step.num}</div>
-                  <div className="process-body">
-                    <h3>{step.title}</h3>
-                    <p>{step.desc}</p>
-                  </div>
-                  {i < processSteps.length - 1 && <div className="process-connector" />}
+        <section className="section">
+          <div className="stack">
+            <div className="read reveal">
+              <p className="kicker">PROCESS</p>
+              <h2>制作の流れ</h2>
+            </div>
+            <div className="card-grid three">
+              {processSteps.map((step, index) => (
+                <article className={`card reveal reveal-delay-${(index % 3) + 1}`} key={step.num}>
+                  <span className="step-num">{step.num}</span>
+                  <h3>{step.title}</h3>
+                  <p>{step.desc}</p>
+                </article>
+              ))}
+            </div>
+            <p className="note reveal">※撮影については、内容に応じてサポート方法を調整します。</p>
+          </div>
+        </section>
+
+        <section className="section section-cream">
+          <div className="stack">
+            <div className="read reveal">
+              <p className="kicker">TYPES</p>
+              <h2>
+                伝えたいことに合わせて、
+                <br />
+                動画の形を考えます。
+              </h2>
+            </div>
+            <div className="card-grid three">
+              {videoTypes.map((item, index) => (
+                <article className={`card reveal reveal-delay-${(index % 3) + 1}`} key={item.title}>
+                  <h3>{item.title}</h3>
+                  <p>{item.desc}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="section" id="cases">
+          <div className="stack">
+            <div className="read reveal">
+              <p className="kicker">WORK</p>
+              <h2>
+                実際に、
+                <br />
+                こんな動画をつくっています。
+              </h2>
+            </div>
+            {cases.map((item) => (
+              <article className="case reveal" key={item.title}>
+                <MediaFrame label={`${item.title} の動画`} />
+                <div className="case-copy">
+                  <p className="case-label">{item.title}</p>
+                  <dl>
+                    <div>
+                      <dt>課題</dt>
+                      <dd>{item.issue}</dd>
+                    </div>
+                    <div>
+                      <dt>考え方</dt>
+                      <dd>{item.thinking}</dd>
+                    </div>
+                    <div>
+                      <dt>制作</dt>
+                      <dd>{item.making}</dd>
+                    </div>
+                    <div>
+                      <dt>結果</dt>
+                      <dd>{item.result}</dd>
+                    </div>
+                  </dl>
                 </div>
-              ))}
-            </div>
+              </article>
+            ))}
           </div>
         </section>
 
-        {/* ========== 16｜動画の種類 ========== */}
-        <section className="section sec-types">
-          <div className="inner">
-            <p className="sec-label">動画の種類</p>
-            <h2>
-              伝えたいことに合わせて、
-              <br />
-              動画の形を考えます。
-            </h2>
-            <div className="type-grid">
-              {videoTypes.map((t) => (
-                <article className="type-card" key={t.title}>
-                  <h3>{t.title}</h3>
-                  <p>{t.desc}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ========== 17｜実績 ========== */}
-        <section className="section sec-cases" id="cases">
-          <div className="inner">
-            <p className="sec-label">実績</p>
-            <h2>
-              「動画を作れる」ではなく、
-              <br />
-              「動画によって何を変えたのか」を見せる。
-            </h2>
-            <div className="case-list">
-              {[1, 2].map((n) => (
-                <article className="case-card" key={n}>
-                  <p className="case-step">課題</p>
-                  <p className="case-placeholder">（案件の課題・背景をここに記載）</p>
-                  <p className="case-step">考え方・構成</p>
-                  <p className="case-placeholder">（どんな視点で設計したか）</p>
-                  <div className="case-video-placeholder">▶ 動画</div>
-                  <p className="case-step">結果</p>
-                  <p className="case-placeholder">（どんな変化・反応があったか）</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ========== 18｜作って終わりにしない ========== */}
-        <section className="section sec-after">
-          <div className="inner inner-narrow">
-            <p className="sec-label">動画を作った、その先</p>
+        <section className="section section-cream">
+          <div className="read reveal">
+            <p className="kicker">AFTER</p>
             <h2>作って終わりにはしません。</h2>
-            <p className="body-text">
-              動画は、<strong>作っただけでは誰にも見てもらえません。</strong>
-            </p>
-            <p className="body-text">だから——</p>
-            <div className="question-group">
-              <p>「どこで使う？」</p>
-              <p>「誰に見てもらう？」</p>
-              <p>「どう届ける？」</p>
-            </div>
-            <p className="body-text">まで考える。</p>
-            <div className="usage-list">
-              {["SNS", "Webサイト", "LP", "広告", "採用ページ", "営業資料"].map((u) => (
-                <span className="tag" key={u}>{u}</span>
+            <p>動画は、作っただけでは誰にも見てもらえません。</p>
+            <p>だから、</p>
+            <p>「どこで使う？」</p>
+            <p>「誰に見てもらう？」</p>
+            <p>「どう届ける？」</p>
+            <p>まで考えます。</p>
+            <div className="chip-row">
+              {["SNS", "Webサイト", "LP", "広告", "採用ページ", "営業資料"].map((item) => (
+                <span className="chip" key={item}>
+                  {item}
+                </span>
               ))}
             </div>
+            <p>など、動画を目的に合わせて活用していきます。</p>
           </div>
         </section>
 
-        {/* ========== 19｜サポート ========== */}
-        <section className="section sec-support">
-          <div className="inner inner-narrow">
-            <p className="sec-label">サポート</p>
-            <h2>「動画を作るのが初めて」という方へ。</h2>
-            <ul className="support-worries">
-              <li>何を話せばいいか分からない。</li>
-              <li>何を撮ればいいか分からない。</li>
-              <li>緊張してしまう。</li>
-              <li>どう使えばいいか分からない。</li>
-            </ul>
-            <p className="body-text">そんな場合も大丈夫。</p>
-            <p className="emphasis">僕が一緒に整理します。</p>
+        <section className="section">
+          <div className="read reveal">
+            <p className="kicker">WEB</p>
+            <h2>
+              動画だけで、
+              <br />
+              すべてが解決するとは思っていません。
+            </h2>
+            <p>
+              どれだけ良い動画を作っても、
+              <br />
+              見てもらえなければ意味がありません。
+            </p>
+            <p>
+              だから僕は、
+              <br />
+              動画を入り口として、
+              <br />
+              LPやLINEなども含め、
+              <br />
+              「伝える」から「届ける」まで
+              <br />
+              考えます。
+            </p>
           </div>
         </section>
 
-        {/* ========== 20｜再び「僕」 ========== */}
-        <section className="section sec-outro" id="outro">
-          <div className="inner inner-narrow">
-            <p className="sec-label center-text">ここまで読んでいただいて</p>
-            <h2 className="center-text">ありがとうございます。</h2>
-            <p className="center-text body-text">最後に、もう一度だけ僕の話をさせてください。</p>
-            <div className="outro-video-placeholder">
-              <span>▶ りょうまの長めのプロフィール動画</span>
+        <section className="section section-cream">
+          <div className="stack">
+            <div className="read reveal">
+              <p className="kicker">SUPPORT</p>
+              <h2>
+                動画を作るのが初めてでも、
+                <br />
+                大丈夫です。
+              </h2>
             </div>
-            <div className="outro-message">
+            <div className="card-grid two">
+              {supports.map((item, index) => (
+                <article className={`card reveal reveal-delay-${(index % 2) + 1}`} key={item}>
+                  <p>{item}</p>
+                </article>
+              ))}
+            </div>
+            <div className="read reveal">
+              <p>そんな場合も、最初から一緒に整理します。</p>
+              <p>
+                「何を作るか」から考えるのではなく、
+                <br />
+                「何を伝えたいのか」
+                <br />
+                から一緒に考えます。
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="section" id="profile">
+          <div className="outro-grid">
+            <div className="read reveal">
+              <p className="kicker">ONCE MORE</p>
+              <h2>
+                最後に、
+                <br />
+                もう一度だけ僕の話をさせてください。
+              </h2>
               <p>
                 僕は、動画を納品して終わる関係ではなく、
-                「この人に頼んでよかった」と思ってもらえる仕事がしたい。
+                <br />
+                「この人に頼んでよかった」
+                <br />
+                と思ってもらえる仕事がしたい。
+              </p>
+              <p>だから、まずはちゃんとあなたのことを知りたい。</p>
+              <p>
+                会社のこと。
+                <br />
+                商品について。
+                <br />
+                仕事について。
+                <br />
+                そして、あなた自身のこと。
               </p>
               <p>
-                だから、まずはちゃんとあなたのことを知りたい。
+                そこから一緒に、
                 <br />
-                会社のこと。商品のこと。そして、あなた自身のこと。
+                「何を伝えるべきか」
+                <br />
+                を考えます。
               </p>
-              <p>そこから一緒に、「何を伝えるべきか」を考えます。</p>
+            </div>
+            <div className="reveal reveal-delay-2">
+              <MediaFrame label="日高の写真 / プロフィール動画" ratio="3 / 4" />
             </div>
           </div>
         </section>
 
-        {/* ========== 21｜CTA ========== */}
-        <section className="section sec-cta" id="cta">
-          <div className="inner inner-narrow center">
-            <h2 className="cta-headline">
+        <section className="section section-cta" id="line">
+          <div className="cta-block reveal">
+            <h2>
               あなたの会社のこと、
               <br />
-              <em>もっと知ってもらいませんか？</em>
+              もっと知ってもらいませんか？
             </h2>
-            <p className="body-text">
+            <p>
               商品だけではなく、
-              <strong> 人柄・想い・仕事へのこだわり。</strong>
               <br />
-              あなたの会社にしかない魅力を、動画にします。
+              人柄。
+              <br />
+              想い。
+              <br />
+              仕事へのこだわり。
             </p>
-            <a className="btn btn-line btn-large" href={LINE_URL} target="_blank" rel="noreferrer">
-              LINEで相談する
-            </a>
-            <p className="cta-note">無料でご相談いただけます</p>
+            <p>
+              あなたの会社にしかない魅力を、
+              <br />
+              動画で伝えていきます。
+            </p>
+            <LineButton className="btn-line-lg" />
+            <p className="cta-note">まずは相談だけでも大丈夫です</p>
           </div>
         </section>
 
-        {/* ========== 22｜+α ========== */}
-        <section className="section sec-plus">
-          <div className="inner inner-narrow">
-            <div className="plus-card">
-              <p className="sec-label">＋αのサポート</p>
-              <p>
-                動画制作に加えて、LP制作・LINE構築までご依頼いただいた場合は、
-                <strong>制作後2ヶ月間のWebマーケティングサポート</strong>も行っています。
-              </p>
-              <p>
-                必要な方には、動画を活用した集客・運用まで一緒にサポートします。
-              </p>
+        <section className="section" id="services">
+          <div className="stack">
+            <div className="read reveal">
+              <p className="kicker">SERVICES</p>
+              <h2>できること</h2>
+            </div>
+            <div className="card-grid two">
+              {services.map((item) => (
+                <article className="card reveal" key={item.title}>
+                  <span className="kind">{item.kind}</span>
+                  <h3>{item.title}</h3>
+                  <p>{item.desc}</p>
+                </article>
+              ))}
             </div>
           </div>
         </section>
       </main>
 
       <footer className="footer">
-        <p>© {new Date().getFullYear()} りょうま 動画制作</p>
+        <div className="footer-top">
+          <a className="logo" href="#top">
+            HIDAKA
+          </a>
+          <nav aria-label="フッターナビ">
+            {nav.map((item) => (
+              <a key={item.href} href={item.href}>
+                {item.label}
+              </a>
+            ))}
+          </nav>
+          <LineButton />
+        </div>
+        <p className="copy">© {new Date().getFullYear()} Hidaka</p>
       </footer>
+
+      <a className="float-cta" href={LINE_URL} target="_blank" rel="noreferrer">
+        <LineIcon />
+        <span>公式LINEで相談する</span>
+      </a>
+      <div className="mobile-cta">
+        <LineButton />
+      </div>
     </div>
   );
 }
