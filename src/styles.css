@@ -263,9 +263,33 @@ h1,
 .listen-grid,
 .outro-grid {
   display: grid;
-  grid-template-columns: minmax(280px, 0.82fr) minmax(0, 1.18fr);
-  gap: 72px;
-  align-items: center;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 56px;
+  align-items: start;
+}
+
+.about-grid > *,
+.listen-grid > *,
+.outro-grid > * {
+  min-width: 0;
+}
+
+.about-grid .read,
+.listen-grid .read,
+.outro-grid .read {
+  max-width: none;
+}
+
+.about-grid h2,
+.listen-grid h2,
+.outro-grid h2 {
+  font-size: clamp(32px, 3.2vw, 44px);
+}
+
+.read h2,
+.hero-lead,
+.big-line {
+  overflow-wrap: anywhere;
 }
 
 .outro-grid {
