@@ -65,10 +65,11 @@ svg {
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  width: min(var(--max), calc(100% - 48px));
-  margin: 0 auto;
-  padding: 22px 0;
-  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  width: 100%;
+  margin: 0;
+  padding: 18px max(24px, calc((100% - var(--max)) / 2));
+  background: rgba(247, 245, 241, 0.94);
+  border-bottom: 1px solid rgba(22, 22, 22, 0.06);
   backdrop-filter: blur(12px);
 }
 
@@ -185,6 +186,12 @@ h1 {
   font-size: 18px;
 }
 
+.section-cta .btn-line,
+.footer .btn-line {
+  background: #fff;
+  color: #111;
+}
+
 .section {
   padding: 150px 0;
 }
@@ -210,7 +217,6 @@ h1 {
 }
 
 .stack,
-.read,
 .about-grid,
 .listen-grid,
 .outro-grid,
@@ -222,7 +228,20 @@ h1 {
 }
 
 .read {
+  max-width: var(--read);
+}
+
+.section > .read {
   width: min(var(--read), calc(100% - 48px));
+  margin: 0 auto;
+}
+
+h1,
+.read h2,
+.cta-block h2,
+.role h2,
+.big-line {
+  text-wrap: balance;
 }
 
 .read h2,
@@ -230,7 +249,7 @@ h1 {
 .role h2 {
   font-size: clamp(48px, 5vw, 64px);
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.25;
   letter-spacing: -0.03em;
   margin-bottom: 36px;
 }
@@ -378,13 +397,26 @@ h1 {
 }
 
 .step-item {
-  min-width: 160px;
+  min-width: 168px;
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 20px;
-  padding: 24px 20px;
+  padding: 24px 36px 24px 20px;
   scroll-snap-align: start;
   position: relative;
+}
+
+.process-card {
+  display: grid;
+  gap: 8px;
+}
+
+.process-num {
+  font-family: Inter, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--muted);
 }
 
 .step-num {
@@ -556,7 +588,7 @@ h1 {
   z-index: 30;
   min-height: 52px;
   padding: 0 20px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.45), 0 16px 40px rgba(0, 0, 0, 0.18);
 }
 
 .mobile-cta {
@@ -644,9 +676,12 @@ h1 {
     padding: 84px 0;
   }
 
-  .site-header,
+  .site-header {
+    padding: 16px;
+  }
+
   .stack,
-  .read,
+  .section > .read,
   .about-grid,
   .listen-grid,
   .outro-grid,

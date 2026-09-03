@@ -407,8 +407,8 @@ export default function App() {
             </div>
             <div className="card-grid three">
               {processSteps.map((step, index) => (
-                <article className={`card reveal reveal-delay-${(index % 3) + 1}`} key={step.num}>
-                  <span className="step-num">{step.num}</span>
+                <article className={`card process-card reveal reveal-delay-${(index % 3) + 1}`} key={step.num}>
+                  <span className="process-num">{step.num}</span>
                   <h3>{step.title}</h3>
                   <p>{step.desc}</p>
                 </article>
