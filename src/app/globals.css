@@ -31,6 +31,12 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+main {
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+}
+
 img,
 video,
 svg {

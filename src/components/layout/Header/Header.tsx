@@ -80,7 +80,7 @@ export function Header() {
         className={[styles.mobilePanel, open ? styles.mobilePanelOpen : ""].join(
           " ",
         )}
-        hidden={!open}
+        aria-hidden={!open}
       >
         <nav aria-label="Mobile">
           <ul className={styles.mobileList}>

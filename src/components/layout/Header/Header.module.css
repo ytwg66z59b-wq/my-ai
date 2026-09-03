@@ -1,7 +1,7 @@
 .header {
   position: fixed;
   inset: 0 0 auto;
-  z-index: 100;
+  z-index: 1000;
   height: var(--header-height);
   background: transparent;
   border-bottom: 1px solid transparent;
@@ -176,18 +176,22 @@
     display: block;
     position: fixed;
     inset: var(--header-height-mobile) 0 0;
+    z-index: 999;
     background: var(--color-background-elevated);
     padding: 1.5rem var(--gutter) 2.5rem;
     transform: translateY(-0.5rem);
     opacity: 0;
+    visibility: hidden;
     pointer-events: none;
     transition:
       opacity var(--duration-base) var(--ease-soft),
-      transform var(--duration-base) var(--ease-out);
+      transform var(--duration-base) var(--ease-out),
+      visibility var(--duration-base) var(--ease-soft);
   }
 
   .mobilePanelOpen {
     opacity: 1;
+    visibility: visible;
     transform: none;
     pointer-events: auto;
   }
