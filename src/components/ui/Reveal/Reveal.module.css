@@ -1,0 +1,43 @@
+.reveal {
+  opacity: 0;
+  will-change: opacity, transform;
+  transition:
+    opacity var(--duration-slow) var(--ease-out),
+    transform var(--duration-slow) var(--ease-out);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+.fade {
+  transform: none;
+}
+
+.fadeUp {
+  transform: translateY(var(--reveal-distance));
+}
+
+.revealMedia {
+  transform: translateY(calc(var(--reveal-distance) * 0.6)) scale(1.02);
+  clip-path: inset(8% 8% 8% 8%);
+  transition:
+    opacity var(--duration-slow) var(--ease-out),
+    transform var(--duration-slow) var(--ease-out),
+    clip-path calc(var(--duration-slow) + 120ms) var(--ease-out);
+}
+
+.visible {
+  opacity: 1;
+  transform: none;
+  clip-path: inset(0 0 0 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .fadeUp,
+  .revealMedia,
+  .visible {
+    opacity: 1;
+    transform: none;
+    clip-path: none;
+    transition: none;
+  }
+}

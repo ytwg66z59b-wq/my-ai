@@ -1,0 +1,31 @@
+.section {
+  position: relative;
+  width: 100%;
+}
+
+.default {
+  background: transparent;
+  color: var(--color-text);
+}
+
+.surface {
+  background: var(--color-surface-soft);
+  color: var(--color-text);
+}
+
+.elevated {
+  background: var(--color-background-elevated);
+  color: var(--color-text);
+}
+
+.space-default {
+  padding-block: var(--section-space);
+}
+
+.space-compact {
+  padding-block: var(--section-space-sm);
+}
+
+.space-none {
+  padding-block: 0;
+}

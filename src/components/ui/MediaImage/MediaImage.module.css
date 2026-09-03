@@ -1,0 +1,22 @@
+.frame {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: var(--color-placeholder);
+}
+
+.rounded {
+  border-radius: var(--radius-md);
+}
+
+.image {
+  object-position: center;
+}
+
+.cover {
+  object-fit: cover;
+}
+
+.contain {
+  object-fit: contain;
+}

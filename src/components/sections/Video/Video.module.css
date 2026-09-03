@@ -1,0 +1,9 @@
+.layout {
+  display: grid;
+  gap: clamp(2rem, 4vw, 3rem);
+}
+
+.video {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
