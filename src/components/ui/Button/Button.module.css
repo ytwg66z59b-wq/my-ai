@@ -1,0 +1,96 @@
+.button {
+  --btn-bg: var(--color-accent);
+  --btn-fg: var(--color-accent-text);
+  --btn-border: transparent;
+  --btn-bg-hover: var(--color-accent-hover);
+  --btn-fg-hover: var(--color-accent-text);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--btn-gap);
+  min-height: 3.1rem;
+  width: fit-content;
+  max-width: 100%;
+  padding: var(--btn-padding-y) var(--btn-padding-x);
+  border: 1px solid var(--btn-border);
+  border-radius: var(--btn-radius);
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.02em;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-base) var(--ease-soft),
+    color var(--duration-base) var(--ease-soft),
+    border-color var(--duration-base) var(--ease-soft),
+    transform var(--duration-fast) var(--ease-soft),
+    box-shadow var(--duration-base) var(--ease-soft);
+}
+
+.button:hover {
+  background: var(--btn-bg-hover);
+  color: var(--btn-fg-hover);
+}
+
+.button:active {
+  transform: translateY(1px);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 3px;
+}
+
+.primary {
+  --btn-bg: var(--color-accent);
+  --btn-fg: var(--color-accent-text);
+  --btn-border: transparent;
+  --btn-bg-hover: var(--color-accent-hover);
+  --btn-fg-hover: var(--color-accent-text);
+  box-shadow: var(--shadow-sm);
+}
+
+.secondary {
+  --btn-bg: transparent;
+  --btn-fg: var(--color-text);
+  --btn-border: var(--color-border-strong);
+  --btn-bg-hover: var(--color-surface);
+  --btn-fg-hover: var(--color-text);
+}
+
+.ghost {
+  --btn-bg: transparent;
+  --btn-fg: var(--color-text);
+  --btn-border: transparent;
+  --btn-bg-hover: var(--color-overlay);
+  --btn-fg-hover: var(--color-text);
+  padding-inline: 0.85rem;
+  min-height: 2.6rem;
+}
+
+.label {
+  white-space: nowrap;
+}
+
+.arrow {
+  display: inline-flex;
+  transition: transform var(--duration-base) var(--ease-out);
+}
+
+.withArrow:hover .arrow {
+  transform: translateX(3px);
+}
+
+@media (max-width: 768px) {
+  .button {
+    min-height: 3rem;
+    width: auto;
+    max-width: 100%;
+  }
+}

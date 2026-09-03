@@ -1,0 +1,18 @@
+.layout {
+  display: grid;
+  gap: clamp(2rem, 4vw, 3.5rem);
+}
+
+.quote {
+  margin: 0;
+  max-width: 40rem;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-snug);
+  line-height: var(--leading-snug);
+  color: var(--color-text);
+}
+
+.image {
+  border-radius: var(--radius-lg);
+}

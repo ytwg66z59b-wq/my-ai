@@ -1,0 +1,104 @@
+/*
+  Design tokens — change colors / typography / spacing here.
+  Components consume these variables; avoid hardcoding values in modules.
+*/
+
+:root {
+  /* Colors — swap for brand later (e.g. dark base, accent) */
+  --color-background: #fafaf8;
+  --color-background-elevated: #ffffff;
+  --color-text: #1a1a1a;
+  --color-text-muted: #5c5c5c;
+  --color-subtext: #6b6b6b;
+  --color-surface: #f1efeb;
+  --color-surface-soft: #f6f5f2;
+  --color-border: #e6e3dc;
+  --color-border-strong: #d4d0c8;
+  --color-accent: #1a1a1a;
+  --color-accent-text: #fafaf8;
+  --color-accent-hover: #333333;
+  --color-overlay: rgba(26, 26, 26, 0.04);
+  --color-header-bg: rgba(250, 250, 248, 0.72);
+  --color-header-bg-scrolled: rgba(250, 250, 248, 0.86);
+  --color-placeholder: #e8e6e1;
+  --color-focus-ring: rgba(26, 26, 26, 0.28);
+
+  /* Fonts — set via next/font CSS variables on <html> */
+  --font-ja: var(--font-noto-sans-jp), "Hiragino Sans", "Hiragino Kaku Gothic ProN",
+    "Noto Sans JP", sans-serif;
+  --font-en: var(--font-inter), "Inter", "Helvetica Neue", Arial, sans-serif;
+  --font-sans: var(--font-ja);
+
+  /* Typography scale */
+  --text-xs: clamp(0.75rem, 0.7rem + 0.2vw, 0.8125rem);
+  --text-sm: clamp(0.875rem, 0.82rem + 0.25vw, 0.9375rem);
+  --text-base: clamp(1rem, 0.95rem + 0.25vw, 1.0625rem);
+  --text-md: clamp(1.0625rem, 1rem + 0.35vw, 1.1875rem);
+  --text-lg: clamp(1.25rem, 1.1rem + 0.6vw, 1.5rem);
+  --text-xl: clamp(1.5rem, 1.25rem + 1vw, 2rem);
+  --text-2xl: clamp(2rem, 1.5rem + 2vw, 3rem);
+  --text-3xl: clamp(2.5rem, 1.8rem + 3vw, 4.25rem);
+  --text-hero: clamp(2.75rem, 2rem + 4vw, 5rem);
+
+  --leading-tight: 1.15;
+  --leading-snug: 1.35;
+  --leading-normal: 1.7;
+  --leading-relaxed: 1.85;
+
+  --tracking-tight: -0.03em;
+  --tracking-snug: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.08em;
+  --tracking-wider: 0.16em;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* Layout */
+  --container-max: 1120px;
+  --container-wide: 1280px;
+  --container-narrow: 720px;
+  --gutter: clamp(1.25rem, 4vw, 2.5rem);
+  --section-space: clamp(5.5rem, 10vw, 9.5rem);
+  --section-space-sm: clamp(3.5rem, 6vw, 5.5rem);
+  --grid-gap: clamp(1.25rem, 2.5vw, 2rem);
+  --grid-gap-lg: clamp(1.75rem, 3.5vw, 3rem);
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
+  /* Elevation */
+  --shadow-sm: 0 1px 2px rgba(26, 26, 26, 0.04);
+  --shadow-md: 0 8px 24px rgba(26, 26, 26, 0.06);
+  --shadow-header: 0 1px 0 rgba(26, 26, 26, 0.06);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 180ms;
+  --duration-base: 320ms;
+  --duration-slow: 700ms;
+  --reveal-distance: 40px;
+
+  /* Header */
+  --header-height: 72px;
+  --header-height-mobile: 64px;
+
+  /* Button */
+  --btn-padding-y: 0.95rem;
+  --btn-padding-x: 1.6rem;
+  --btn-radius: var(--radius-pill);
+  --btn-gap: 0.65rem;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --section-space: clamp(4rem, 14vw, 5.5rem);
+    --reveal-distance: 28px;
+  }
+}

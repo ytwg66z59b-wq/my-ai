@@ -1,0 +1,42 @@
+.layout {
+  display: grid;
+  gap: var(--grid-gap-lg);
+  align-items: center;
+}
+
+.copy {
+  display: grid;
+  gap: 2.5rem;
+}
+
+.points {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1.5rem;
+}
+
+.point {
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.pointTitle {
+  margin: 0 0 0.5rem;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+}
+
+.pointBody {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--color-text-muted);
+}
+
+@media (min-width: 900px) {
+  .layout {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  }
+}

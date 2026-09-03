@@ -1,0 +1,77 @@
+.layout {
+  display: grid;
+  gap: var(--grid-gap-lg);
+  align-items: center;
+}
+
+.media {
+  max-width: 22rem;
+  margin-inline: auto;
+  width: 100%;
+}
+
+.copy {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.name {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-snug);
+}
+
+.role {
+  margin: 0;
+  font-family: var(--font-en);
+  font-size: var(--text-sm);
+  letter-spacing: 0.04em;
+  color: var(--color-subtext);
+}
+
+.description {
+  margin: 0.5rem 0 0;
+  font-size: var(--text-md);
+  line-height: var(--leading-normal);
+  color: var(--color-text-muted);
+  max-width: 34rem;
+}
+
+.facts {
+  display: grid;
+  gap: 1rem;
+  margin: 1rem 0 0;
+}
+
+.fact {
+  display: grid;
+  grid-template-columns: 7rem 1fr;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.fact dt {
+  font-family: var(--font-en);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-subtext);
+}
+
+.fact dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+}
+
+@media (min-width: 900px) {
+  .layout {
+    grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
+  }
+
+  .media {
+    margin-inline: 0;
+  }
+}
