@@ -81,6 +81,6 @@
   }
 
   .image {
-    aspect-ratio: 16 / 10;
+    --media-aspect: 16 / 10;
   }
 }
