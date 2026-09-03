@@ -1,0 +1,38 @@
+{
+  "name": "my-ai-landing-page",
+  "version": "1.0.0",
+  "description": "Rebuilt landing page project",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ytwg66z59b-wq/my-ai.git"
+  },
+  "keywords": [
+    "landing-page",
+    "react",
+    "vite"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ytwg66z59b-wq/my-ai/issues"
+  },
+  "homepage": "https://github.com/ytwg66z59b-wq/my-ai#readme",
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2"
+  }
+}
