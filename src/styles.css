@@ -615,14 +615,20 @@ figure {
   grid-template-columns: repeat(3, 1fr);
   gap: 4px;
   padding: 0 10px;
+  position: relative;
+  z-index: 3;
 }
 
 .tab {
-  min-height: 44px;
+  min-height: 48px;
   background: #f0f0f0;
   font-size: 12px;
   font-weight: 700;
   border-radius: 8px 8px 0 0;
+  position: relative;
+  z-index: 4;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .tab.is-active {
@@ -914,10 +920,24 @@ figure {
     left: auto;
     right: 20px;
     bottom: 20px;
-    width: 360px;
+    width: auto;
+    max-width: 280px;
     border: 1px solid #f0eaea;
     border-radius: 20px;
     box-shadow: var(--shadow);
+    padding: 12px;
+  }
+
+  .fixed-cta > p {
+    display: none;
+  }
+
+  .fixed-cta-btns {
+    grid-template-columns: 1fr;
+  }
+
+  .fixed-cta .btn-outline {
+    display: none;
   }
 
   .menu-btn {

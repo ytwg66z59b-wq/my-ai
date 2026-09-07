@@ -60,7 +60,7 @@ function CaseTabs({ item }: { item: (typeof cases)[number] }) {
     { key: "design", label: "動画の設計", lead: "どう伝わるように設計した？", body: item.design },
   ] as const;
   const [active, setActive] = useState<(typeof tabs)[number]["key"]>("issue");
-  const current = tabs.find((t) => t.key === active)!;
+  const current = tabs.find((t) => t.key === active) ?? tabs[0];
 
   return (
     <article className="case-card reveal">
@@ -73,19 +73,25 @@ function CaseTabs({ item }: { item: (typeof cases)[number] }) {
           {item.title.slice(1)}
         </h3>
       </div>
-      <div className="tabs">
+      <div className="tabs" role="tablist" aria-label={`${item.client} の詳細`}>
         {tabs.map((tab) => (
           <button
             key={tab.key}
             type="button"
+            role="tab"
+            aria-selected={active === tab.key}
             className={active === tab.key ? "tab is-active" : "tab"}
-            onClick={() => setActive(tab.key)}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              setActive(tab.key);
+            }}
           >
             {tab.label}
           </button>
         ))}
       </div>
-      <div className="tab-panel">
+      <div className="tab-panel" role="tabpanel">
         <p className="tab-lead">
           <i />
           {current.lead}
