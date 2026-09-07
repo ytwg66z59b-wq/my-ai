@@ -35,6 +35,7 @@ body {
   min-width: 320px;
   background: var(--bg);
   padding-bottom: 110px;
+  overflow-x: hidden;
 }
 
 a {
@@ -78,7 +79,7 @@ figure {
 }
 
 .lp {
-  overflow-x: clip;
+  position: relative;
 }
 
 .site-header {
