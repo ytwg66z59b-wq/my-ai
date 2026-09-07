@@ -283,14 +283,20 @@ figure {
   font-size: 13px;
 }
 
+.band,
+.hero,
+.cta-final {
+  scroll-margin-top: 88px;
+}
+
 .hero {
   width: min(var(--max), calc(100% - 40px));
   margin: 0 auto;
-  min-height: calc(100svh - var(--header));
+  min-height: auto;
   display: grid;
   gap: 40px;
   align-items: center;
-  padding: 48px 0 80px;
+  padding: 56px 0 96px;
 }
 
 .eyebrow {
@@ -914,7 +920,8 @@ figure {
   .hero {
     grid-template-columns: 1.1fr 0.9fr;
     gap: 56px;
-    padding-top: 40px;
+    padding: 64px 0 120px;
+    min-height: calc(100svh - var(--header) - 40px);
   }
 
   .about-grid {

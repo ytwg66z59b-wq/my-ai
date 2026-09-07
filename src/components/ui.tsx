@@ -98,18 +98,29 @@ export function useHeaderShrink() {
 export function useReveal() {
   useEffect(() => {
     const nodes = Array.from(document.querySelectorAll<HTMLElement>(".reveal"));
+    const reveal = (node: Element) => node.classList.add("is-visible");
+
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
           if (!entry.isIntersecting) continue;
-          entry.target.classList.add("is-visible");
+          reveal(entry.target);
           observer.unobserve(entry.target);
         }
       },
-      { threshold: 0.12, rootMargin: "0px 0px -8% 0px" },
+      { threshold: 0.08, rootMargin: "0px 0px -4% 0px" },
     );
 
-    nodes.forEach((node) => observer.observe(node));
+    for (const node of nodes) {
+      const rect = node.getBoundingClientRect();
+      const inView = rect.top < window.innerHeight * 0.92 && rect.bottom > 0;
+      if (inView) {
+        reveal(node);
+      } else {
+        observer.observe(node);
+      }
+    }
+
     return () => observer.disconnect();
   }, []);
 }
