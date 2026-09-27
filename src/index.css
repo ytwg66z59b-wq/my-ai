@@ -1,0 +1,6 @@
+/* Base reset lives mostly in App.css for this single-page tool. */
+html,
+body,
+#root {
+  height: 100%;
+}
