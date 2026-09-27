@@ -33,3 +33,9 @@ npm run test:logic
 5. 「もう一度プレイする」で新しい人生へ
 
 進行状況は `localStorage` に自動保存されます。
+
+デモ用にキャラ作成をスキップして開始する場合:
+
+```
+http://localhost:5173/?demo=play
+```

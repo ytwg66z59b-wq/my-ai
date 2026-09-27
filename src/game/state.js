@@ -68,7 +68,7 @@ export const STAT_META = [
 /** @type {Record<Personality, Partial<Stats>>} */
 export const PERSONALITY_BONUS = {
   真面目: { ability: 10, work: 8, happiness: -5, relationships: 0 },
-  行動派: { work: 10, ability: 5, health: 5, ability: 200000 },
+  行動派: { work: 10, ability: 5, health: 5, money: 200000 },
   内向的: { ability: 12, relationships: -8, love: -5, happiness: 0 },
   社交的: { relationships: 15, love: 8, happiness: 5, ability: -5 },
   自由人: { happiness: 12, health: 5, work: -5, money: 100000 },

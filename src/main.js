@@ -29,6 +29,22 @@ let createForm = {
 };
 
 function init() {
+  const params = new URLSearchParams(location.search);
+  if (params.get('demo') === 'play') {
+    clearSave();
+    state = createNewGame({
+      name: params.get('name') || 'デモ太郎',
+      gender: 'other',
+      personality: '社交的',
+    });
+    state = startYear(state);
+    persist();
+    // clean URL without reload
+    history.replaceState({}, '', location.pathname);
+    render();
+    return;
+  }
+
   const saved = loadGame();
   if (saved && saved.screen === 'playing') {
     state = saved;
@@ -131,29 +147,53 @@ function canStart() {
   return createForm.name.trim() && createForm.gender && createForm.personality;
 }
 
+function syncCreateFormFromDom() {
+  const nameInput = document.getElementById('name');
+  if (nameInput) createForm.name = nameInput.value;
+}
+
+function updateCreateSelectionUi() {
+  document.querySelectorAll('[data-gender]').forEach((btn) => {
+    btn.classList.toggle('selected', btn.getAttribute('data-gender') === createForm.gender);
+  });
+  document.querySelectorAll('[data-personality]').forEach((btn) => {
+    btn.classList.toggle(
+      'selected',
+      btn.getAttribute('data-personality') === createForm.personality
+    );
+  });
+  const startBtn = document.getElementById('btn-start');
+  if (startBtn) startBtn.disabled = !canStart();
+}
+
 function bindCreate() {
   const nameInput = document.getElementById('name');
-  nameInput?.addEventListener('input', (e) => {
-    createForm.name = e.target.value;
-    const btn = document.getElementById('btn-start');
-    if (btn) btn.disabled = !canStart();
-  });
+  const onNameChange = () => {
+    syncCreateFormFromDom();
+    updateCreateSelectionUi();
+  };
+  nameInput?.addEventListener('input', onNameChange);
+  nameInput?.addEventListener('change', onNameChange);
+  nameInput?.addEventListener('compositionend', onNameChange);
 
   document.querySelectorAll('[data-gender]').forEach((btn) => {
     btn.addEventListener('click', () => {
+      syncCreateFormFromDom();
       createForm.gender = btn.getAttribute('data-gender');
-      render();
+      updateCreateSelectionUi();
     });
   });
 
   document.querySelectorAll('[data-personality]').forEach((btn) => {
     btn.addEventListener('click', () => {
+      syncCreateFormFromDom();
       createForm.personality = btn.getAttribute('data-personality');
-      render();
+      updateCreateSelectionUi();
     });
   });
 
   document.getElementById('btn-start')?.addEventListener('click', () => {
+    syncCreateFormFromDom();
     if (!canStart()) return;
     clearSave();
     state = createNewGame({
@@ -282,21 +322,32 @@ function bindPlay() {
     });
   });
 
-  document.getElementById('btn-advance')?.addEventListener('click', async () => {
+  document.getElementById('btn-advance')?.addEventListener('click', () => {
     const btn = document.getElementById('btn-advance');
-    if (btn) btn.disabled = true;
+    if (btn) {
+      if (btn.dataset.busy === '1') return;
+      btn.dataset.busy = '1';
+      btn.disabled = true;
+      btn.textContent = '進んでいます…';
+    }
+
     state = advanceYear(state);
     const incomeChanges = state._incomeChanges || [];
     delete state._incomeChanges;
-    if (incomeChanges.length) {
-      await showFloatChanges(incomeChanges.filter((c) => c.key === 'money' || Math.abs(c.value) >= 2));
-    }
+    const ageTransition = state._ageTransition;
+    delete state._ageTransition;
+
     persist();
     render();
-    if (state._ageTransition) {
-      delete state._ageTransition;
-      document.getElementById('age-badge')?.classList.add('age-transition');
+
+    if (ageTransition) {
+      requestAnimationFrame(() => {
+        document.getElementById('age-badge')?.classList.add('age-transition');
+      });
     }
+
+    const floats = incomeChanges.filter((c) => c.key === 'money' || Math.abs(c.value) >= 2);
+    if (floats.length) showFloatChanges(floats);
   });
 
   document.getElementById('btn-log')?.addEventListener('click', () => {
