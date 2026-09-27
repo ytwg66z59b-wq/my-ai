@@ -240,6 +240,22 @@ button:disabled {
   color: var(--ink-soft);
 }
 
+.subtitle-sub {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--pink-deep);
+}
+
+.setting-hint {
+  margin: -4px 0 14px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
 .main {
   display: flex;
   flex-direction: column;
@@ -399,7 +415,7 @@ button:disabled {
   border-radius: var(--radius-md);
   padding: 8px 14px;
   box-shadow: var(--shadow-soft);
-  min-width: 140px;
+  min-width: 168px;
   justify-content: center;
 }
 
