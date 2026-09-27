@@ -5,7 +5,7 @@ import './App.css'
 const PRESETS = [6, 8, 10, 12] as const
 const MIN_CHARS = 1
 const MAX_CHARS = 100
-const COPY_RESET_MS = 1600
+const COPY_RESET_MS = 2000
 
 function App() {
   const [text, setText] = useState('')
