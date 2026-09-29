@@ -1,286 +1,301 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { countChars, splitText } from './splitText'
+import {
+  extractFrames,
+  loadVideoFromFile,
+  revokeVideo,
+  type FrameCapture,
+} from './extractFrames'
+import { downloadBlob, defaultPdfName, framesToPdf } from './framesToPdf'
+import { estimateFrameCount, formatDuration } from './frameTimes'
 import './App.css'
 
-const PRESETS = [6, 8, 10, 12] as const
-const MIN_CHARS = 1
-const MAX_CHARS = 100
-const COPY_RESET_MS = 2000
+const INTERVAL_SEC = 0.3
+const ACCEPT = 'video/mp4,video/webm,video/quicktime,video/*'
+
+type Status = 'idle' | 'ready' | 'working' | 'done' | 'error'
 
 function App() {
-  const [text, setText] = useState('')
-  const [charsPerLine, setCharsPerLine] = useState(8)
-  const [copiedIndex, setCopiedIndex] = useState<number | null>(null)
-  const [copiedAll, setCopiedAll] = useState(false)
-  const [burstKey, setBurstKey] = useState(0)
-  const copyTimer = useRef<number | null>(null)
-  const copyAllTimer = useRef<number | null>(null)
-  const textareaId = useId()
-  const numberId = useId()
+  const inputId = useId()
+  const fileRef = useRef<HTMLInputElement>(null)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
-  const charCount = countChars(text)
-  const lines = splitText(text, charsPerLine)
+  const [file, setFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [duration, setDuration] = useState(0)
+  const [status, setStatus] = useState<Status>('idle')
+  const [message, setMessage] = useState('')
+  const [progress, setProgress] = useState({ done: 0, total: 0 })
+  const [frames, setFrames] = useState<FrameCapture[]>([])
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null)
+  const [dragOver, setDragOver] = useState(false)
+
+  const estimated = estimateFrameCount(duration, INTERVAL_SEC)
 
   useEffect(() => {
     return () => {
-      if (copyTimer.current) window.clearTimeout(copyTimer.current)
-      if (copyAllTimer.current) window.clearTimeout(copyAllTimer.current)
+      abortRef.current?.abort()
+      if (videoRef.current) revokeVideo(videoRef.current)
+      if (previewUrl) URL.revokeObjectURL(previewUrl)
     }
-  }, [])
+  }, [previewUrl])
 
-  function clampChars(value: number) {
-    if (Number.isNaN(value)) return charsPerLine
-    return Math.min(MAX_CHARS, Math.max(MIN_CHARS, value))
+  async function prepareFile(next: File) {
+    abortRef.current?.abort()
+    if (videoRef.current) {
+      revokeVideo(videoRef.current)
+      videoRef.current = null
+    }
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+
+    setFile(next)
+    setFrames([])
+    setPdfBlob(null)
+    setProgress({ done: 0, total: 0 })
+    setMessage('')
+    setStatus('idle')
+
+    const url = URL.createObjectURL(next)
+    setPreviewUrl(url)
+
+    try {
+      const video = await loadVideoFromFile(next)
+      videoRef.current = video
+      setDuration(video.duration)
+      setStatus('ready')
+    } catch (err) {
+      setDuration(0)
+      setStatus('error')
+      setMessage(err instanceof Error ? err.message : '動画を読み込めませんでした')
+    }
   }
 
-  function handleCharsChange(raw: string) {
-    const digits = raw.replace(/[^\d]/g, '')
-    if (digits === '') {
-      setCharsPerLine(MIN_CHARS)
+  function onPick(list: FileList | null) {
+    const picked = list?.[0]
+    if (!picked) return
+    if (!picked.type.startsWith('video/')) {
+      setStatus('error')
+      setMessage('動画ファイルを選んでください')
       return
     }
-    setCharsPerLine(clampChars(Number(digits)))
+    void prepareFile(picked)
   }
 
-  async function copyText(value: string) {
+  async function handleConvert() {
+    if (!file || !videoRef.current || status === 'working') return
+
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    setStatus('working')
+    setMessage('')
+    setFrames([])
+    setPdfBlob(null)
+    setProgress({ done: 0, total: estimated })
+
     try {
-      await navigator.clipboard.writeText(value)
-      return true
-    } catch {
-      // Fallback for environments without clipboard permission
-      const ta = document.createElement('textarea')
-      ta.value = value
-      ta.setAttribute('readonly', '')
-      ta.style.position = 'fixed'
-      ta.style.left = '-9999px'
-      document.body.appendChild(ta)
-      ta.select()
-      const ok = document.execCommand('copy')
-      document.body.removeChild(ta)
-      return ok
+      const captured = await extractFrames(
+        videoRef.current,
+        INTERVAL_SEC,
+        (p) => setProgress({ done: p.done, total: p.total }),
+        controller.signal,
+      )
+      const blob = await framesToPdf(captured, {
+        title: `${file.name} — ${INTERVAL_SEC}s frames`,
+      })
+      setFrames(captured)
+      setPdfBlob(blob)
+      setStatus('done')
+      setMessage(`${captured.length} 枚のコマを PDF にまとめました`)
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        setStatus('ready')
+        setMessage('中止しました')
+        return
+      }
+      setStatus('error')
+      setMessage(err instanceof Error ? err.message : '変換に失敗しました')
     }
   }
 
-  async function handleCopyLine(line: string, index: number) {
-    const ok = await copyText(line)
-    if (!ok) return
-    setCopiedIndex(index)
-    setBurstKey((k) => k + 1)
-    if (copyTimer.current) window.clearTimeout(copyTimer.current)
-    copyTimer.current = window.setTimeout(() => setCopiedIndex(null), COPY_RESET_MS)
+  function handleDownload() {
+    if (!pdfBlob || !file) return
+    downloadBlob(pdfBlob, defaultPdfName(file.name))
   }
 
-  async function handleCopyAll() {
-    if (lines.length === 0) return
-    const ok = await copyText(lines.join('\n'))
-    if (!ok) return
-    setCopiedAll(true)
-    setBurstKey((k) => k + 1)
-    if (copyAllTimer.current) window.clearTimeout(copyAllTimer.current)
-    copyAllTimer.current = window.setTimeout(() => setCopiedAll(false), COPY_RESET_MS)
+  function handleReset() {
+    abortRef.current?.abort()
+    if (videoRef.current) {
+      revokeVideo(videoRef.current)
+      videoRef.current = null
+    }
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setPreviewUrl(null)
+    setFile(null)
+    setDuration(0)
+    setFrames([])
+    setPdfBlob(null)
+    setProgress({ done: 0, total: 0 })
+    setMessage('')
+    setStatus('idle')
+    if (fileRef.current) fileRef.current.value = ''
   }
 
-  function handleClear() {
-    setText('')
-    setCopiedIndex(null)
-    setCopiedAll(false)
-  }
-
-  function bumpChars(delta: number) {
-    setCharsPerLine((prev) => clampChars(prev + delta))
-  }
+  const pct =
+    progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0
 
   return (
     <div className="page">
-      <div className="bg-blobs" aria-hidden="true">
-        <span className="blob blob-pink" />
-        <span className="blob blob-blue" />
-        <span className="blob blob-yellow" />
+      <div className="atmosphere" aria-hidden="true">
+        <div className="glow glow-a" />
+        <div className="glow glow-b" />
+        <div className="perforation" />
       </div>
 
       <header className="hero">
-        <div className="decor decor-star" aria-hidden="true">
-          ✦
-        </div>
-        <div className="decor decor-pencil" aria-hidden="true">
-          ✏️
-        </div>
-        <div className="decor decor-heart" aria-hidden="true">
-          ♡
-        </div>
-        <div className="decor decor-paper" aria-hidden="true">
-          📄
-        </div>
-
-        <p className="eyebrow">かわいく分けちゃうよ</p>
-        <h1 className="title">
-          <span className="title-icon" aria-hidden="true">
-            ✂️
-          </span>
-          ぶんしょう分けメーカー
-        </h1>
-        <p className="subtitle">長い文章を、好きな文字数で分けよう！</p>
+        <p className="brand">コマPDF</p>
+        <h1 className="headline">動画を、0.3秒ごとのコマ送りPDFに。</h1>
+        <p className="lede">
+          ファイルを渡すだけで、フレームを抜き出して1つのPDFにまとめます。
+        </p>
       </header>
 
       <main className="main">
-        <section className="card input-card" aria-labelledby="step1-heading">
-          <div className="card-head">
-            <h2 id="step1-heading" className="step-title">
-              <span className="step-badge">①</span>
-              文章を入れてね <span aria-hidden="true">✏️</span>
-            </h2>
-            <button
-              type="button"
-              className="btn btn-clear"
-              onClick={handleClear}
-              disabled={!text}
-            >
-              🗑️ クリア
-            </button>
-          </div>
-
-          <label className="sr-only" htmlFor={textareaId}>
-            分けたい文章
-          </label>
-          <textarea
-            id={textareaId}
-            className="text-input"
-            placeholder="ここに長い文章を書いてね…"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={6}
-            inputMode="text"
-            autoComplete="off"
-            spellCheck={false}
+        <section
+          className={`dropzone${dragOver ? ' is-over' : ''}${file ? ' has-file' : ''}`}
+          onDragEnter={(e) => {
+            e.preventDefault()
+            setDragOver(true)
+          }}
+          onDragOver={(e) => {
+            e.preventDefault()
+            setDragOver(true)
+          }}
+          onDragLeave={(e) => {
+            e.preventDefault()
+            setDragOver(false)
+          }}
+          onDrop={(e) => {
+            e.preventDefault()
+            setDragOver(false)
+            onPick(e.dataTransfer.files)
+          }}
+        >
+          <input
+            ref={fileRef}
+            id={inputId}
+            className="file-input"
+            type="file"
+            accept={ACCEPT}
+            onChange={(e) => onPick(e.target.files)}
           />
-          <p className="char-live" aria-live="polite">
-            いま <strong>{charCount}</strong> 文字 入ってるよ！
-          </p>
-        </section>
 
-        <section className="card setting-card" aria-labelledby="step2-heading">
-          <h2 id="step2-heading" className="step-title">
-            <span className="step-badge step-badge-blue">②</span>
-            1行を何文字にする？ <span aria-hidden="true">🔢</span>
-          </h2>
-
-          <div className="number-row">
-            <button
-              type="button"
-              className="btn btn-stepper"
-              onClick={() => bumpChars(-1)}
-              aria-label="1文字減らす"
-            >
-              −
-            </button>
-            <div className="number-box">
-              <label className="sr-only" htmlFor={numberId}>
-                1行あたりの文字数
-              </label>
-              <input
-                id={numberId}
-                className="number-input"
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={charsPerLine}
-                onChange={(e) => handleCharsChange(e.target.value)}
-                onBlur={() => setCharsPerLine((v) => clampChars(v))}
-              />
-              <span className="number-unit">文字</span>
-            </div>
-            <button
-              type="button"
-              className="btn btn-stepper"
-              onClick={() => bumpChars(1)}
-              aria-label="1文字増やす"
-            >
-              ＋
-            </button>
-          </div>
-
-          <div className="presets" role="group" aria-label="文字数プリセット">
-            {PRESETS.map((n) => (
-              <button
-                key={n}
-                type="button"
-                className={`btn btn-preset${charsPerLine === n ? ' is-active' : ''}`}
-                onClick={() => setCharsPerLine(n)}
-                aria-pressed={charsPerLine === n}
-              >
-                {n}文字
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section className="card result-card" aria-labelledby="step3-heading">
-          <h2 id="step3-heading" className="step-title result-heading">
-            <span className="step-badge step-badge-yellow">③</span>
-            できあがり！ <span aria-hidden="true">🎉</span>
-          </h2>
-
-          {lines.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-illus" aria-hidden="true">
-                <span>✨</span>
-                <span>📝</span>
-                <span>✨</span>
-              </div>
-              <p>
-                ここに文章を入れると、
-                <br />
-                きれいに分けてくれるよ ✨
-              </p>
-            </div>
+          {!file ? (
+            <label htmlFor={inputId} className="drop-label">
+              <span className="drop-mark" aria-hidden="true" />
+              <span className="drop-title">動画をドロップ、または選択</span>
+              <span className="drop-hint">MP4 / WebM / MOV など</span>
+            </label>
           ) : (
-            <>
-              <button
-                type="button"
-                className={`btn btn-copy-all${copiedAll ? ' is-success' : ''}`}
-                onClick={handleCopyAll}
-              >
-                {copiedAll ? '🎉 ぜんぶコピーしたよ！' : '📋 ぜんぶコピー！'}
-              </button>
-              <p className="result-summary" aria-live="polite">
-                全部で <strong>{lines.length}</strong> 行になったよ！
-              </p>
-              <ul className="result-list">
-                {lines.map((line, index) => {
-                  const isCopied = copiedIndex === index
-                  return (
-                    <li
-                      key={`${index}-${line}`}
-                      className="result-item"
-                      style={{ animationDelay: `${Math.min(index, 12) * 40}ms` }}
-                    >
-                      <p className="result-text">{line}</p>
-                      <button
-                        type="button"
-                        className={`btn btn-copy${isCopied ? ' is-success' : ''}`}
-                        onClick={() => handleCopyLine(line, index)}
-                      >
-                        {isCopied ? '✓ コピーしたよ！' : '📋 コピー'}
-                      </button>
-                    </li>
-                  )
-                })}
-              </ul>
-            </>
+            <div className="file-panel">
+              {previewUrl && (
+                <video
+                  className="preview"
+                  src={previewUrl}
+                  muted
+                  playsInline
+                  controls
+                  preload="metadata"
+                />
+              )}
+              <div className="file-meta">
+                <p className="file-name">{file.name}</p>
+                <dl className="stats">
+                  <div>
+                    <dt>長さ</dt>
+                    <dd>{formatDuration(duration)}</dd>
+                  </div>
+                  <div>
+                    <dt>間隔</dt>
+                    <dd>{INTERVAL_SEC}秒</dd>
+                  </div>
+                  <div>
+                    <dt>コマ数</dt>
+                    <dd>{estimated || '—'}</dd>
+                  </div>
+                </dl>
+                <div className="actions">
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleConvert}
+                    disabled={status === 'working' || status === 'idle' || !duration}
+                  >
+                    {status === 'working' ? '変換中…' : 'PDFをつくる'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={handleReset}
+                    disabled={status === 'working'}
+                  >
+                    やり直す
+                  </button>
+                  <label htmlFor={inputId} className="btn btn-ghost as-label">
+                    別の動画
+                  </label>
+                </div>
+              </div>
+            </div>
           )}
         </section>
+
+        {(status === 'working' || status === 'done' || status === 'error') && (
+          <section className="status-card" aria-live="polite">
+            {status === 'working' && (
+              <>
+                <div className="progress-track">
+                  <div className="progress-fill" style={{ width: `${pct}%` }} />
+                </div>
+                <p className="status-text">
+                  コマ送り中 {progress.done} / {progress.total}（{pct}%）
+                </p>
+              </>
+            )}
+            {status === 'done' && (
+              <div className="done-row">
+                <p className="status-text">{message}</p>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-download"
+                  onClick={handleDownload}
+                >
+                  PDFをダウンロード
+                </button>
+              </div>
+            )}
+            {status === 'error' && <p className="status-text is-error">{message}</p>}
+          </section>
+        )}
+
+        {frames.length > 0 && (
+          <section className="strip" aria-label="抽出したコマ">
+            <h2 className="strip-title">抽出したコマ</h2>
+            <ul className="strip-list">
+              {frames.map((frame, index) => (
+                <li key={`${frame.timeSec}-${index}`} className="strip-item">
+                  <img src={frame.dataUrl} alt={`${frame.timeSec.toFixed(1)}秒のコマ`} />
+                  <span>{frame.timeSec.toFixed(1)}s</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       </main>
 
-      {burstKey > 0 && (
-        <div key={burstKey} className="sparkle-burst" aria-hidden="true">
-          <span>✦</span>
-          <span>★</span>
-          <span>✦</span>
-        </div>
-      )}
-
       <footer className="footer">
-        <p>文章を入れて、数字を決めたら、ポンっと分けてくれるよ</p>
+        <p>処理はブラウザ内だけで完結します。動画はサーバーに送られません。</p>
       </footer>
     </div>
   )

@@ -1,100 +1,102 @@
+import fs from 'node:fs'
+import path from 'node:path'
 import puppeteer from 'puppeteer-core'
+
+const SAMPLE = process.env.SAMPLE_VIDEO || '/tmp/video-pdf-test/sample.mp4'
+const OUT_DIR = '/opt/cursor/artifacts'
+fs.mkdirSync(OUT_DIR, { recursive: true })
+
+if (!fs.existsSync(SAMPLE)) {
+  console.error(`Sample video missing: ${SAMPLE}`)
+  process.exit(1)
+}
 
 const browser = await puppeteer.launch({
   executablePath: '/usr/local/bin/google-chrome',
   headless: true,
-  args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=390,844'],
-  defaultViewport: { width: 390, height: 844, isMobile: true, hasTouch: true },
+  args: [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--window-size=1280,900',
+    '--autoplay-policy=no-user-gesture-required',
+    '--use-fake-ui-for-media-stream',
+  ],
+  defaultViewport: { width: 1280, height: 900 },
 })
 
 const page = await browser.newPage()
-await page.goto('http://127.0.0.1:5173/', { waitUntil: 'networkidle0' })
-
-// Grant clipboard permission
-const context = browser.defaultBrowserContext()
-await context.overridePermissions('http://127.0.0.1:5173', ['clipboard-read', 'clipboard-write'])
+const client = await page.createCDPSession()
+await client.send('Page.setDownloadBehavior', {
+  behavior: 'allow',
+  downloadPath: OUT_DIR,
+})
 
 const results = []
-
 function ok(name, pass, detail = '') {
   results.push({ name, pass, detail })
   console.log(`${pass ? 'PASS' : 'FAIL'}: ${name}${detail ? ' — ' + detail : ''}`)
 }
 
-// Empty state
-const empty = await page.$eval('.empty-state', (el) => el.textContent)
-ok('empty state visible', empty.includes('きれいに分けてくれるよ'))
+await page.goto('http://127.0.0.1:5173/', { waitUntil: 'networkidle0' })
 
-// Type text
-const sample = 'これはテスト文章です長い文章を6文字ずつに分けてみようね'
-await page.click('.text-input')
-await page.type('.text-input', sample)
-await page.waitForFunction(
-  (n) => document.querySelector('.char-live')?.textContent?.includes(String(n)),
-  {},
-  28,
-)
-const countText = await page.$eval('.char-live', (el) => el.textContent)
-ok('char counter', countText.includes('28'), countText)
+const brand = await page.$eval('.brand', (el) => el.textContent?.trim())
+ok('brand visible', brand === 'コマPDF', brand)
 
-// Click 6文字 preset
-await page.click('button.btn-preset:nth-of-type(1)')
+const input = await page.$('.file-input')
+ok('file input present', Boolean(input))
+
+await input.uploadFile(SAMPLE)
+await page.waitForFunction(() => document.querySelector('.file-name'))
+const fileName = await page.$eval('.file-name', (el) => el.textContent || '')
+ok('file selected', fileName.includes('sample.mp4'), fileName)
+
 await page.waitForFunction(() => {
-  const active = document.querySelector('.btn-preset.is-active')
-  return active && active.textContent.includes('6文字')
+  const dd = document.querySelector('.stats dd')
+  return dd && !dd.textContent.includes('—')
 })
-ok('preset 6 active', true)
 
-const lineCount = await page.$$eval('.result-item', (els) => els.length)
-ok('split into lines (6 chars)', lineCount === Math.ceil(28 / 6), `lines=${lineCount}`)
+const frameCountText = await page.$$eval('.stats dd', (els) => els[2]?.textContent || '')
+const expectedFrames = Number(frameCountText)
+ok('estimated frames > 0', expectedFrames > 0, `frames=${expectedFrames}`)
 
-const firstLine = await page.$eval('.result-item .result-text', (el) => el.textContent)
-ok('first line is 6 chars', [...firstLine].length === 6, firstLine)
-
-// Copy one line
-await page.click('.result-item .btn-copy')
-await page.waitForFunction(() =>
-  document.querySelector('.result-item .btn-copy')?.textContent?.includes('コピーしたよ'),
-)
-ok('copy feedback', true)
-const clip = await page.evaluate(() => navigator.clipboard.readText())
-ok('clipboard has line', clip === firstLine, clip)
-
+await page.click('.file-meta .btn-primary')
 await page.waitForFunction(
-  () => document.querySelector('.result-item .btn-copy')?.textContent?.includes('📋 コピー'),
-  { timeout: 3000 },
+  () => document.querySelector('.status-text')?.textContent?.includes('PDF にまとめました'),
+  { timeout: 60_000 },
 )
-ok('copy button resets', true)
+const doneText = await page.$eval('.status-text', (el) => el.textContent || '')
+ok('conversion done', doneText.includes(`${expectedFrames} 枚`), doneText)
 
-// Copy all
-await page.click('.btn-copy-all')
-await page.waitForFunction(() =>
-  document.querySelector('.btn-copy-all')?.textContent?.includes('ぜんぶコピーしたよ'),
-)
-ok('copy-all feedback', true)
+const thumbs = await page.$$eval('.strip-item img', (els) => els.length)
+ok('thumbnails match', thumbs === expectedFrames, `thumbs=${thumbs}`)
 
-// Clear
-await page.click('.btn-clear')
-await page.waitForSelector('.empty-state')
-const cleared = await page.$eval('.text-input', (el) => el.value)
-ok('clear works', cleared === '')
-
-// Stepper
-await page.type('.text-input', 'あいうえおかきくけこ')
-await page.click('.btn-stepper[aria-label="1文字増やす"]')
-await page.waitForFunction(() => {
-  const v = document.querySelector('.number-input')?.value
-  return v === '7'
+await page.screenshot({
+  path: path.join(OUT_DIR, 'koma_pdf_after_convert.png'),
+  fullPage: true,
 })
-ok('stepper +', true)
 
-await page.click('button.btn-preset:nth-of-type(3)') // 10文字
-await page.waitForFunction(() =>
-  document.querySelector('.btn-preset.is-active')?.textContent?.includes('10文字'),
-)
-ok('preset 10', true)
+// Trigger download and wait for PDF file
+const before = new Set(fs.readdirSync(OUT_DIR))
+await page.click('.btn-download')
+let pdfPath = null
+for (let i = 0; i < 40; i += 1) {
+  await new Promise((r) => setTimeout(r, 250))
+  const after = fs.readdirSync(OUT_DIR)
+  const fresh = after.find((f) => f.endsWith('.pdf') && !before.has(f) && !f.endsWith('.crdownload'))
+  if (fresh) {
+    pdfPath = path.join(OUT_DIR, fresh)
+    break
+  }
+}
 
-await page.screenshot({ path: '/opt/cursor/artifacts/mobile_interaction_verified.png', fullPage: true })
+ok('pdf downloaded', Boolean(pdfPath), pdfPath || 'missing')
+if (pdfPath) {
+  const size = fs.statSync(pdfPath).size
+  ok('pdf non-empty', size > 1000, `bytes=${size}`)
+  // Rename to a stable artifact name
+  const stable = path.join(OUT_DIR, 'sample_0.3s.pdf')
+  fs.copyFileSync(pdfPath, stable)
+}
 
 const failed = results.filter((r) => !r.pass)
 console.log(`\n${results.length - failed.length}/${results.length} passed`)
