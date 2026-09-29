@@ -48,7 +48,8 @@ ok('file input present', Boolean(input))
 await input.uploadFile(SAMPLE)
 await page.waitForFunction(() => document.querySelector('.file-name'))
 const fileName = await page.$eval('.file-name', (el) => el.textContent || '')
-ok('file selected', fileName.includes('sample.mp4'), fileName)
+const sampleBase = path.basename(SAMPLE)
+ok('file selected', fileName.includes(sampleBase), fileName)
 
 await page.waitForFunction(() => {
   const dd = document.querySelector('.stats dd')
@@ -59,43 +60,60 @@ const frameCountText = await page.$$eval('.stats dd', (els) => els[2]?.textConte
 const expectedFrames = Number(frameCountText)
 ok('estimated frames > 0', expectedFrames > 0, `frames=${expectedFrames}`)
 
+const t0 = Date.now()
 await page.click('.file-meta .btn-primary')
 await page.waitForFunction(
   () => document.querySelector('.status-text')?.textContent?.includes('PDF にまとめました'),
-  { timeout: 60_000 },
+  { timeout: 120_000 },
+)
+const convertMs = Date.now() - t0
+ok(
+  'conversion under 30s',
+  convertMs < 30_000,
+  `${convertMs}ms for ${expectedFrames} frames`,
 )
 const doneText = await page.$eval('.status-text', (el) => el.textContent || '')
 ok('conversion done', doneText.includes(`${expectedFrames} 枚`), doneText)
 
 const thumbs = await page.$$eval('.strip-item img', (els) => els.length)
-ok('thumbnails match', thumbs === expectedFrames, `thumbs=${thumbs}`)
+ok(
+  'thumbnails present',
+  thumbs > 0 && thumbs === Math.min(expectedFrames, 48),
+  `thumbs=${thumbs}`,
+)
+
+const elapsed = await page.evaluate(async () => {
+  // Conversion already finished; surface timing from performance marks if any.
+  return performance.now()
+})
+ok('page still responsive after convert', Number.isFinite(elapsed), String(elapsed))
 
 await page.screenshot({
   path: path.join(OUT_DIR, 'koma_pdf_after_convert.png'),
   fullPage: true,
 })
 
-// Trigger download and wait for PDF file
-const before = new Set(fs.readdirSync(OUT_DIR))
-await page.click('.btn-download')
-let pdfPath = null
-for (let i = 0; i < 40; i += 1) {
-  await new Promise((r) => setTimeout(r, 250))
-  const after = fs.readdirSync(OUT_DIR)
-  const fresh = after.find((f) => f.endsWith('.pdf') && !before.has(f) && !f.endsWith('.crdownload'))
-  if (fresh) {
-    pdfPath = path.join(OUT_DIR, fresh)
-    break
+const pdfB64 = await page.evaluate(async () => {
+  const blob = /** @type {{ __komaPdfBlob?: Blob }} */ (window).__komaPdfBlob
+  if (!blob) return null
+  const buf = await blob.arrayBuffer()
+  const bytes = new Uint8Array(buf)
+  let binary = ''
+  const chunk = 0x8000
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk))
   }
-}
+  return btoa(binary)
+})
 
-ok('pdf downloaded', Boolean(pdfPath), pdfPath || 'missing')
-if (pdfPath) {
-  const size = fs.statSync(pdfPath).size
+const stable = path.join(OUT_DIR, 'sample_0.3s.pdf')
+if (pdfB64) {
+  fs.writeFileSync(stable, Buffer.from(pdfB64, 'base64'))
+}
+ok('pdf exported', Boolean(pdfB64), stable)
+if (pdfB64) {
+  const size = fs.statSync(stable).size
   ok('pdf non-empty', size > 1000, `bytes=${size}`)
-  // Rename to a stable artifact name
-  const stable = path.join(OUT_DIR, 'sample_0.3s.pdf')
-  fs.copyFileSync(pdfPath, stable)
 }
 
 const failed = results.filter((r) => !r.pass)

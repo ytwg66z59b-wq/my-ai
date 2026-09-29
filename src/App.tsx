@@ -1,11 +1,11 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import {
-  extractFrames,
+  convertVideoToPdf,
   loadVideoFromFile,
   revokeVideo,
-  type FrameCapture,
+  type FrameThumb,
 } from './extractFrames'
-import { downloadBlob, defaultPdfName, framesToPdf } from './framesToPdf'
+import { downloadBlob, defaultPdfName } from './framesToPdf'
 import { estimateFrameCount, formatDuration } from './frameTimes'
 import './App.css'
 
@@ -26,7 +26,8 @@ function App() {
   const [status, setStatus] = useState<Status>('idle')
   const [message, setMessage] = useState('')
   const [progress, setProgress] = useState({ done: 0, total: 0 })
-  const [frames, setFrames] = useState<FrameCapture[]>([])
+  const [thumbs, setThumbs] = useState<FrameThumb[]>([])
+  const [frameCount, setFrameCount] = useState(0)
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null)
   const [dragOver, setDragOver] = useState(false)
 
@@ -49,7 +50,8 @@ function App() {
     if (previewUrl) URL.revokeObjectURL(previewUrl)
 
     setFile(next)
-    setFrames([])
+    setThumbs([])
+    setFrameCount(0)
     setPdfBlob(null)
     setProgress({ done: 0, total: 0 })
     setMessage('')
@@ -90,24 +92,25 @@ function App() {
 
     setStatus('working')
     setMessage('')
-    setFrames([])
+    setThumbs([])
+    setFrameCount(0)
     setPdfBlob(null)
     setProgress({ done: 0, total: estimated })
 
     try {
-      const captured = await extractFrames(
-        videoRef.current,
-        INTERVAL_SEC,
-        (p) => setProgress({ done: p.done, total: p.total }),
-        controller.signal,
-      )
-      const blob = await framesToPdf(captured, {
+      const result = await convertVideoToPdf(videoRef.current, {
+        intervalSec: INTERVAL_SEC,
         title: `${file.name} — ${INTERVAL_SEC}s frames`,
+        signal: controller.signal,
+        onProgress: (p) => setProgress({ done: p.done, total: p.total }),
       })
-      setFrames(captured)
-      setPdfBlob(blob)
+      setThumbs(result.thumbs)
+      setFrameCount(result.frameCount)
+      setPdfBlob(result.pdf)
+      // Test hook for headless smoke downloads.
+      ;(window as unknown as { __komaPdfBlob?: Blob }).__komaPdfBlob = result.pdf
       setStatus('done')
-      setMessage(`${captured.length} 枚のコマを PDF にまとめました`)
+      setMessage(`${result.frameCount} 枚のコマを PDF にまとめました`)
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
         setStatus('ready')
@@ -134,7 +137,8 @@ function App() {
     setPreviewUrl(null)
     setFile(null)
     setDuration(0)
-    setFrames([])
+    setThumbs([])
+    setFrameCount(0)
     setPdfBlob(null)
     setProgress({ done: 0, total: 0 })
     setMessage('')
@@ -279,11 +283,16 @@ function App() {
           </section>
         )}
 
-        {frames.length > 0 && (
+        {thumbs.length > 0 && (
           <section className="strip" aria-label="抽出したコマ">
-            <h2 className="strip-title">抽出したコマ</h2>
+            <h2 className="strip-title">
+              抽出したコマ
+              {frameCount > thumbs.length
+                ? `（先頭 ${thumbs.length} / ${frameCount}）`
+                : `（${frameCount}）`}
+            </h2>
             <ul className="strip-list">
-              {frames.map((frame, index) => (
+              {thumbs.map((frame, index) => (
                 <li key={`${frame.timeSec}-${index}`} className="strip-item">
                   <img src={frame.dataUrl} alt={`${frame.timeSec.toFixed(1)}秒のコマ`} />
                   <span>{frame.timeSec.toFixed(1)}s</span>

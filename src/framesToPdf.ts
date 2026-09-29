@@ -1,5 +1,4 @@
 import { jsPDF } from 'jspdf'
-import type { FrameCapture } from './extractFrames'
 
 const MM_PER_INCH = 25.4
 
@@ -7,43 +6,71 @@ function pxToMm(px: number, dpi = 96): number {
   return (px / dpi) * MM_PER_INCH
 }
 
-/** Build a multi-page PDF with one frame image per page, fitted to the page. */
-export async function framesToPdf(
-  frames: FrameCapture[],
-  options?: { title?: string; dpi?: number },
-): Promise<Blob> {
-  if (frames.length === 0) {
-    throw new Error('PDF にする画像がありません')
-  }
+export type PdfSession = {
+  addFrame: (jpeg: Uint8Array) => void
+  toBlob: () => Blob
+}
 
-  const dpi = options?.dpi ?? 96
-  const first = frames[0]!
-  const pageW = pxToMm(first.width, dpi)
-  const pageH = pxToMm(first.height, dpi)
+/** Incremental PDF writer: JPEG bytes are embedded without re-encoding. */
+export function buildPdfSession(
+  widthPx: number,
+  heightPx: number,
+  title?: string,
+  dpi = 96,
+): PdfSession {
+  const pageW = pxToMm(widthPx, dpi)
+  const pageH = pxToMm(heightPx, dpi)
+  const landscape = pageW >= pageH
 
   const doc = new jsPDF({
-    orientation: pageW >= pageH ? 'landscape' : 'portrait',
+    orientation: landscape ? 'landscape' : 'portrait',
     unit: 'mm',
     format: [pageW, pageH],
     compress: true,
   })
 
-  if (options?.title) {
-    doc.setProperties({ title: options.title })
+  if (title) {
+    doc.setProperties({ title })
   }
 
-  frames.forEach((frame, index) => {
-    if (index > 0) {
-      const w = pxToMm(frame.width, dpi)
-      const h = pxToMm(frame.height, dpi)
-      doc.addPage([w, h], w >= h ? 'landscape' : 'portrait')
-    }
-    const pageWidth = doc.internal.pageSize.getWidth()
-    const pageHeight = doc.internal.pageSize.getHeight()
-    doc.addImage(frame.dataUrl, 'JPEG', 0, 0, pageWidth, pageHeight, undefined, 'FAST')
-  })
+  let index = 0
 
-  return doc.output('blob')
+  return {
+    addFrame(jpeg: Uint8Array) {
+      if (index > 0) {
+        doc.addPage([pageW, pageH], landscape ? 'landscape' : 'portrait')
+      }
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+      // NONE: already JPEG — skip jsPDF's expensive recompress path.
+      doc.addImage(jpeg, 'JPEG', 0, 0, pageWidth, pageHeight, `f${index}`, 'NONE')
+      index += 1
+    },
+    toBlob() {
+      if (index === 0) {
+        throw new Error('PDF にする画像がありません')
+      }
+      return doc.output('blob')
+    },
+  }
+}
+
+/** @deprecated Prefer convertVideoToPdf one-pass; kept for unit-testable naming helpers. */
+export async function framesToPdf(
+  frames: Array<{ dataUrl: string; width: number; height: number }>,
+  options?: { title?: string; dpi?: number },
+): Promise<Blob> {
+  if (frames.length === 0) {
+    throw new Error('PDF にする画像がありません')
+  }
+  const first = frames[0]!
+  const session = buildPdfSession(first.width, first.height, options?.title, options?.dpi)
+  for (const frame of frames) {
+    const res = await fetch(frame.dataUrl)
+    const buf = new Uint8Array(await res.arrayBuffer())
+    session.addFrame(buf)
+  }
+  return session.toBlob()
 }
 
 export function downloadBlob(blob: Blob, filename: string): void {
@@ -55,7 +82,6 @@ export function downloadBlob(blob: Blob, filename: string): void {
   document.body.appendChild(a)
   a.click()
   a.remove()
-  // Delay revoke so the browser can start the download.
   window.setTimeout(() => URL.revokeObjectURL(url), 2_000)
 }
 

@@ -3,6 +3,7 @@ import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/my-ai/',
+  // Relative base works for local dev and GitHub Pages (/my-ai/).
+  base: './',
   plugins: [react()],
 })

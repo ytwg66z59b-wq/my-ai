@@ -1,10 +1,9 @@
 import { frameTimestamps } from './frameTimes'
+import { buildPdfSession } from './framesToPdf'
 
-export type FrameCapture = {
+export type FrameThumb = {
   timeSec: number
   dataUrl: string
-  width: number
-  height: number
 }
 
 export type ExtractProgress = {
@@ -12,6 +11,20 @@ export type ExtractProgress = {
   total: number
   timeSec: number
 }
+
+export type ConvertResult = {
+  pdf: Blob
+  thumbs: FrameThumb[]
+  frameCount: number
+  width: number
+  height: number
+}
+
+/** Long-edge cap keeps encode/PDF fast even for 4K sources. */
+export const MAX_LONG_EDGE = 1280
+export const JPEG_QUALITY = 0.7
+export const THUMB_WIDTH = 120
+export const MAX_THUMBS = 48
 
 function waitEvent(target: EventTarget, event: string, errorEvent = 'error'): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -34,6 +47,11 @@ function waitEvent(target: EventTarget, event: string, errorEvent = 'error'): Pr
 
 function seekVideo(video: HTMLVideoElement, timeSec: number): Promise<void> {
   return new Promise((resolve, reject) => {
+    if (Math.abs(video.currentTime - timeSec) < 0.0005 && video.readyState >= 2) {
+      resolve()
+      return
+    }
+
     const onSeeked = () => {
       cleanup()
       resolve()
@@ -48,13 +66,44 @@ function seekVideo(video: HTMLVideoElement, timeSec: number): Promise<void> {
     }
     video.addEventListener('seeked', onSeeked, { once: true })
     video.addEventListener('error', onError, { once: true })
-
-    // Some browsers ignore no-op seeks; force a tiny delta then target.
-    if (Math.abs(video.currentTime - timeSec) < 1e-4) {
-      video.currentTime = Math.min(timeSec + 1e-3, Math.max(0, video.duration - 1e-3))
-    }
     video.currentTime = timeSec
   })
+}
+
+function canvasToJpegBytes(
+  canvas: HTMLCanvasElement,
+  quality: number,
+): Promise<Uint8Array> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error('JPEG 変換に失敗しました'))
+          return
+        }
+        void blob.arrayBuffer().then(
+          (buf) => resolve(new Uint8Array(buf)),
+          reject,
+        )
+      },
+      'image/jpeg',
+      quality,
+    )
+  })
+}
+
+export function scaledSize(
+  srcW: number,
+  srcH: number,
+  maxLongEdge: number,
+): { width: number; height: number } {
+  const longEdge = Math.max(srcW, srcH)
+  if (longEdge <= maxLongEdge) return { width: srcW, height: srcH }
+  const scale = maxLongEdge / longEdge
+  return {
+    width: Math.max(1, Math.round(srcW * scale)),
+    height: Math.max(1, Math.round(srcH * scale)),
+  }
 }
 
 export async function loadVideoFromFile(file: File): Promise<HTMLVideoElement> {
@@ -75,7 +124,6 @@ export async function loadVideoFromFile(file: File): Promise<HTMLVideoElement> {
     throw err
   }
 
-  // Attach revoke helper for callers.
   ;(video as HTMLVideoElement & { __objectUrl?: string }).__objectUrl = url
   return video
 }
@@ -90,15 +138,37 @@ export function revokeVideo(video: HTMLVideoElement): void {
   video.load()
 }
 
-export async function extractFrames(
+export type ConvertOptions = {
+  intervalSec?: number
+  maxLongEdge?: number
+  jpegQuality?: number
+  title?: string
+  onProgress?: (progress: ExtractProgress) => void
+  signal?: AbortSignal
+}
+
+/**
+ * Seek → downscale JPEG → append PDF page in one pass.
+ * Avoids full-res data URLs and jsPDF JPEG recompression.
+ */
+export async function convertVideoToPdf(
   video: HTMLVideoElement,
-  intervalSec = 0.3,
-  onProgress?: (progress: ExtractProgress) => void,
-  signal?: AbortSignal,
-): Promise<FrameCapture[]> {
+  options: ConvertOptions = {},
+): Promise<ConvertResult> {
+  const intervalSec = options.intervalSec ?? 0.3
+  const maxLongEdge = options.maxLongEdge ?? MAX_LONG_EDGE
+  const jpegQuality = options.jpegQuality ?? JPEG_QUALITY
+  const { onProgress, signal, title } = options
+
   const duration = video.duration
   if (!Number.isFinite(duration) || duration <= 0) {
     throw new Error('動画の長さを取得できませんでした')
+  }
+
+  const srcW = video.videoWidth
+  const srcH = video.videoHeight
+  if (!srcW || !srcH) {
+    throw new Error('動画の解像度を取得できませんでした')
   }
 
   const times = frameTimestamps(duration, intervalSec)
@@ -106,33 +176,61 @@ export async function extractFrames(
     throw new Error('切り出せるフレームがありません')
   }
 
-  const width = video.videoWidth
-  const height = video.videoHeight
-  if (!width || !height) {
-    throw new Error('動画の解像度を取得できませんでした')
-  }
+  const { width, height } = scaledSize(srcW, srcH, maxLongEdge)
 
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = height
-  const ctx = canvas.getContext('2d', { alpha: false, willReadFrequently: false })
+  const ctx = canvas.getContext('2d', { alpha: false })
   if (!ctx) throw new Error('Canvas を初期化できませんでした')
 
-  const frames: FrameCapture[] = []
+  const thumbW = Math.min(THUMB_WIDTH, width)
+  const thumbH = Math.max(1, Math.round((height / width) * thumbW))
+  const thumbCanvas = document.createElement('canvas')
+  thumbCanvas.width = thumbW
+  thumbCanvas.height = thumbH
+  const thumbCtx = thumbCanvas.getContext('2d', { alpha: false })
+  if (!thumbCtx) throw new Error('サムネイル用 Canvas を初期化できませんでした')
+
+  const session = buildPdfSession(width, height, title)
+  const thumbs: FrameThumb[] = []
+  let lastProgressAt = 0
+
+  video.pause()
 
   for (let i = 0; i < times.length; i += 1) {
     if (signal?.aborted) {
       throw new DOMException('Aborted', 'AbortError')
     }
+
     const timeSec = times[i]!
-    // Keep a tiny epsilon away from the exact end for decoder safety.
-    const seekTo = Math.min(timeSec, Math.max(0, duration - 0.001))
-    await seekVideo(video, seekTo)
+    await seekVideo(video, Math.min(timeSec, Math.max(0, duration - 0.001)))
+
     ctx.drawImage(video, 0, 0, width, height)
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.9)
-    frames.push({ timeSec, dataUrl, width, height })
-    onProgress?.({ done: i + 1, total: times.length, timeSec })
+    const jpeg = await canvasToJpegBytes(canvas, jpegQuality)
+    session.addFrame(jpeg)
+
+    if (thumbs.length < MAX_THUMBS) {
+      thumbCtx.drawImage(canvas, 0, 0, thumbW, thumbH)
+      thumbs.push({
+        timeSec,
+        dataUrl: thumbCanvas.toDataURL('image/jpeg', 0.55),
+      })
+    }
+
+    const now = performance.now()
+    const isLast = i === times.length - 1
+    if (isLast || now - lastProgressAt >= 100) {
+      lastProgressAt = now
+      onProgress?.({ done: i + 1, total: times.length, timeSec })
+    }
   }
 
-  return frames
+  return {
+    pdf: session.toBlob(),
+    thumbs,
+    frameCount: times.length,
+    width,
+    height,
+  }
 }
