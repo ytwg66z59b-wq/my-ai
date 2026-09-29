@@ -1,154 +1,184 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import {
-  convertVideoToPdf,
-  loadVideoFromFile,
-  revokeVideo,
-  type FrameThumb,
-} from './extractFrames'
-import { downloadBlob, defaultPdfName } from './framesToPdf'
-import { estimateFrameCount, formatDuration } from './frameTimes'
+  abortQueue,
+  enqueueFiles,
+  isQueueRunning,
+  removeJob,
+  runJobQueue,
+} from './jobQueue'
+import {
+  clearFinishedJobs,
+  listJobs,
+  markJob,
+  type StoredJob,
+} from './jobStore'
+import { downloadJobsAsOneFile } from './zipDownload'
+import { warmFfmpeg } from './convertFfmpeg'
 import './App.css'
 
-const INTERVAL_SEC = 0.3
 const ACCEPT = 'video/mp4,video/webm,video/quicktime,video/*'
 
-type Status = 'idle' | 'ready' | 'working' | 'done' | 'error'
+function statusLabel(status: StoredJob['status']): string {
+  switch (status) {
+    case 'queued':
+      return '待ち'
+    case 'processing':
+      return '変換中'
+    case 'done':
+      return '完了'
+    case 'error':
+      return '失敗'
+  }
+}
 
 function App() {
   const inputId = useId()
   const fileRef = useRef<HTMLInputElement>(null)
-  const videoRef = useRef<HTMLVideoElement | null>(null)
-  const abortRef = useRef<AbortController | null>(null)
-
-  const [file, setFile] = useState<File | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [duration, setDuration] = useState(0)
-  const [status, setStatus] = useState<Status>('idle')
-  const [message, setMessage] = useState('')
-  const [progress, setProgress] = useState({ done: 0, total: 0 })
-  const [thumbs, setThumbs] = useState<FrameThumb[]>([])
-  const [frameCount, setFrameCount] = useState(0)
-  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null)
+  const [jobs, setJobs] = useState<StoredJob[]>([])
   const [dragOver, setDragOver] = useState(false)
+  const [message, setMessage] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [progress, setProgress] = useState<{
+    label: string
+    pct: number
+  } | null>(null)
+  const [engineHint, setEngineHint] = useState('高速エンジンを準備中…')
 
-  const estimated = estimateFrameCount(duration, INTERVAL_SEC)
-
-  useEffect(() => {
-    return () => {
-      abortRef.current?.abort()
-      if (videoRef.current) revokeVideo(videoRef.current)
-      if (previewUrl) URL.revokeObjectURL(previewUrl)
-    }
-  }, [previewUrl])
-
-  async function prepareFile(next: File) {
-    abortRef.current?.abort()
-    if (videoRef.current) {
-      revokeVideo(videoRef.current)
-      videoRef.current = null
-    }
-    if (previewUrl) URL.revokeObjectURL(previewUrl)
-
-    setFile(next)
-    setThumbs([])
-    setFrameCount(0)
-    setPdfBlob(null)
-    setProgress({ done: 0, total: 0 })
-    setMessage('')
-    setStatus('idle')
-
-    const url = URL.createObjectURL(next)
-    setPreviewUrl(url)
-
-    try {
-      const video = await loadVideoFromFile(next)
-      videoRef.current = video
-      setDuration(video.duration)
-      setStatus('ready')
-    } catch (err) {
-      setDuration(0)
-      setStatus('error')
-      setMessage(err instanceof Error ? err.message : '動画を読み込めませんでした')
-    }
+  async function refreshJobs() {
+    setJobs(await listJobs())
   }
 
-  function onPick(list: FileList | null) {
-    const picked = list?.[0]
-    if (!picked) return
-    if (!picked.type.startsWith('video/')) {
-      setStatus('error')
+  useEffect(() => {
+    void (async () => {
+      await refreshJobs()
+      // Resume unfinished work left from a previous visit.
+      const existing = await listJobs()
+      const pending = existing.some((j) => j.status === 'queued' || j.status === 'processing')
+      if (pending && !isQueueRunning()) {
+        setBusy(true)
+        setMessage('前回の続きから変換を再開しています…')
+        await runJobQueue({
+          onProgress: (p) => {
+            const framePct =
+              p.frameTotal > 0 ? Math.round((p.frameDone / p.frameTotal) * 100) : 0
+            setProgress({
+              label: `${p.jobIndex}/${p.jobTotal}「${p.jobName}」 ${p.frameDone}/${p.frameTotal}`,
+              pct: Math.round(((p.jobIndex - 1) / p.jobTotal) * 100 + framePct / p.jobTotal),
+            })
+          },
+          onAllDone: async () => {
+            await refreshJobs()
+            setBusy(false)
+            setProgress(null)
+            setMessage('変換が完了しました。まとめてダウンロードできます。')
+          },
+        })
+      }
+      const ok = await warmFfmpeg()
+      setEngineHint(ok ? '高速エンジン準備完了' : '標準エンジンで変換します')
+    })()
+
+    const onLeave = (e: BeforeUnloadEvent) => {
+      if (isQueueRunning()) {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+    window.addEventListener('beforeunload', onLeave)
+    return () => window.removeEventListener('beforeunload', onLeave)
+  }, [])
+
+  async function addFiles(list: FileList | File[] | null) {
+    if (!list || list.length === 0) return
+    const files = [...list].filter((f) => f.type.startsWith('video/'))
+    if (files.length === 0) {
       setMessage('動画ファイルを選んでください')
       return
     }
-    void prepareFile(picked)
-  }
-
-  async function handleConvert() {
-    if (!file || !videoRef.current || status === 'working') return
-
-    abortRef.current?.abort()
-    const controller = new AbortController()
-    abortRef.current = controller
-
-    setStatus('working')
-    setMessage('')
-    setThumbs([])
-    setFrameCount(0)
-    setPdfBlob(null)
-    setProgress({ done: 0, total: estimated })
-
-    try {
-      const result = await convertVideoToPdf(videoRef.current, {
-        intervalSec: INTERVAL_SEC,
-        title: `${file.name} — ${INTERVAL_SEC}s frames`,
-        signal: controller.signal,
-        onProgress: (p) => setProgress({ done: p.done, total: p.total }),
-      })
-      setThumbs(result.thumbs)
-      setFrameCount(result.frameCount)
-      setPdfBlob(result.pdf)
-      // Test hook for headless smoke downloads.
-      ;(window as unknown as { __komaPdfBlob?: Blob }).__komaPdfBlob = result.pdf
-      setStatus('done')
-      setMessage(`${result.frameCount} 枚のコマを PDF にまとめました`)
-    } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') {
-        setStatus('ready')
-        setMessage('中止しました')
-        return
-      }
-      setStatus('error')
-      setMessage(err instanceof Error ? err.message : '変換に失敗しました')
-    }
-  }
-
-  function handleDownload() {
-    if (!pdfBlob || !file) return
-    downloadBlob(pdfBlob, defaultPdfName(file.name))
-  }
-
-  function handleReset() {
-    abortRef.current?.abort()
-    if (videoRef.current) {
-      revokeVideo(videoRef.current)
-      videoRef.current = null
-    }
-    if (previewUrl) URL.revokeObjectURL(previewUrl)
-    setPreviewUrl(null)
-    setFile(null)
-    setDuration(0)
-    setThumbs([])
-    setFrameCount(0)
-    setPdfBlob(null)
-    setProgress({ done: 0, total: 0 })
-    setMessage('')
-    setStatus('idle')
+    await enqueueFiles(files)
+    await refreshJobs()
+    setMessage(`${files.length} 本をキューに追加しました`)
     if (fileRef.current) fileRef.current.value = ''
   }
 
-  const pct =
-    progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0
+  async function handleStart() {
+    const queued = jobs.filter((j) => j.status === 'queued' || j.status === 'error')
+    // Re-queue errors only if file still present — runJobQueue picks queued/processing.
+    if (busy || isQueueRunning()) return
+    const pending = (await listJobs()).filter(
+      (j) => j.status === 'queued' || j.status === 'processing',
+    )
+    if (pending.length === 0 && queued.length === 0) {
+      setMessage('先に動画を追加してください')
+      return
+    }
 
+    // Re-mark errors as queued if user retries (file may still be in IDB).
+    for (const job of jobs.filter((j) => j.status === 'error')) {
+      await markJob(job.id, { status: 'queued', error: undefined })
+    }
+    await refreshJobs()
+
+    setBusy(true)
+    setMessage('バックグラウンドで変換しています。タブを切り替えても大丈夫です。')
+    if ('Notification' in window && Notification.permission === 'default') {
+      void Notification.requestPermission()
+    }
+
+    await runJobQueue({
+      onProgress: (p) => {
+        const framePct = p.frameTotal > 0 ? Math.round((p.frameDone / p.frameTotal) * 100) : 0
+        setProgress({
+          label: `${p.jobIndex}/${p.jobTotal}「${p.jobName}」 ${p.frameDone}/${p.frameTotal}`,
+          pct: Math.round(((p.jobIndex - 1) / p.jobTotal) * 100 + framePct / p.jobTotal),
+        })
+      },
+      onAllDone: async (finalJobs) => {
+        setJobs(finalJobs)
+        setBusy(false)
+        setProgress(null)
+        const done = finalJobs.filter((j) => j.status === 'done').length
+        setMessage(
+          done > 0
+            ? `${done} 件の PDF ができました。1つのファイルとしてダウンロードできます。`
+            : '完了した PDF がありません',
+        )
+      },
+    })
+  }
+
+  async function handleDownloadAll() {
+    try {
+      await downloadJobsAsOneFile(jobs)
+      setMessage('ダウンロードを開始しました')
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'ダウンロードに失敗しました')
+    }
+  }
+
+  async function handleClearDone() {
+    await clearFinishedJobs()
+    await refreshJobs()
+    setMessage('完了済みをクリアしました')
+  }
+
+  async function handleRemove(id: string) {
+    await removeJob(id)
+    await refreshJobs()
+  }
+
+  function handleAbort() {
+    abortQueue()
+    setBusy(false)
+    setProgress(null)
+    setMessage('中止しました。未完了は次回このページを開くと再開できます。')
+    void refreshJobs()
+  }
+
+  const doneCount = jobs.filter((j) => j.status === 'done').length
+  const queuedCount = jobs.filter((j) => j.status === 'queued').length
+
+  // Fix typo in message - I used Chinese 就绪 by mistake
   return (
     <div className="page">
       <div className="atmosphere" aria-hidden="true">
@@ -161,13 +191,14 @@ function App() {
         <p className="brand">コマPDF</p>
         <h1 className="headline">動画を、0.3秒ごとのコマ送りPDFに。</h1>
         <p className="lede">
-          ファイルを渡すだけで、フレームを抜き出して1つのPDFにまとめます。
+          複数の動画をまとめて変換し、PDF を1つのファイルでダウンロードできます。タブを閉じても、次回開いたときに続きから再開します。
         </p>
+        <p className="engine-hint">{engineHint}</p>
       </header>
 
       <main className="main">
         <section
-          className={`dropzone${dragOver ? ' is-over' : ''}${file ? ' has-file' : ''}`}
+          className={`dropzone${dragOver ? ' is-over' : ''}${jobs.length ? ' has-file' : ''}`}
           onDragEnter={(e) => {
             e.preventDefault()
             setDragOver(true)
@@ -183,7 +214,7 @@ function App() {
           onDrop={(e) => {
             e.preventDefault()
             setDragOver(false)
-            onPick(e.dataTransfer.files)
+            void addFiles(e.dataTransfer.files)
           }}
         >
           <input
@@ -192,110 +223,85 @@ function App() {
             className="file-input"
             type="file"
             accept={ACCEPT}
-            onChange={(e) => onPick(e.target.files)}
+            multiple
+            onChange={(e) => void addFiles(e.target.files)}
           />
+          <label htmlFor={inputId} className="drop-label">
+            <span className="drop-mark" aria-hidden="true" />
+            <span className="drop-title">動画をドロップ、または選択（複数可）</span>
+            <span className="drop-hint">MP4 / WebM / MOV など · まとめて1ファイルで受け取れます</span>
+          </label>
+        </section>
 
-          {!file ? (
-            <label htmlFor={inputId} className="drop-label">
-              <span className="drop-mark" aria-hidden="true" />
-              <span className="drop-title">動画をドロップ、または選択</span>
-              <span className="drop-hint">MP4 / WebM / MOV など</span>
-            </label>
+        <section className="actions-bar">
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => void handleStart()}
+            disabled={busy || (queuedCount === 0 && jobs.every((j) => j.status !== 'error'))}
+          >
+            {busy ? '変換中…' : '変換スタート'}
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary btn-download"
+            onClick={() => void handleDownloadAll()}
+            disabled={doneCount === 0 || busy}
+          >
+            {doneCount <= 1 ? 'PDFをダウンロード' : `まとめてダウンロード（${doneCount}件→1ファイル）`}
+          </button>
+          {busy ? (
+            <button type="button" className="btn btn-ghost" onClick={handleAbort}>
+              中止
+            </button>
           ) : (
-            <div className="file-panel">
-              {previewUrl && (
-                <video
-                  className="preview"
-                  src={previewUrl}
-                  muted
-                  playsInline
-                  controls
-                  preload="metadata"
-                />
-              )}
-              <div className="file-meta">
-                <p className="file-name">{file.name}</p>
-                <dl className="stats">
-                  <div>
-                    <dt>長さ</dt>
-                    <dd>{formatDuration(duration)}</dd>
-                  </div>
-                  <div>
-                    <dt>間隔</dt>
-                    <dd>{INTERVAL_SEC}秒</dd>
-                  </div>
-                  <div>
-                    <dt>コマ数</dt>
-                    <dd>{estimated || '—'}</dd>
-                  </div>
-                </dl>
-                <div className="actions">
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={handleConvert}
-                    disabled={status === 'working' || status === 'idle' || !duration}
-                  >
-                    {status === 'working' ? '変換中…' : 'PDFをつくる'}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    onClick={handleReset}
-                    disabled={status === 'working'}
-                  >
-                    やり直す
-                  </button>
-                  <label htmlFor={inputId} className="btn btn-ghost as-label">
-                    別の動画
-                  </label>
-                </div>
-              </div>
-            </div>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => void handleClearDone()}
+              disabled={doneCount === 0}
+            >
+              完了をクリア
+            </button>
           )}
         </section>
 
-        {(status === 'working' || status === 'done' || status === 'error') && (
+        {(progress || message) && (
           <section className="status-card" aria-live="polite">
-            {status === 'working' && (
+            {progress && (
               <>
                 <div className="progress-track">
-                  <div className="progress-fill" style={{ width: `${pct}%` }} />
+                  <div className="progress-fill" style={{ width: `${progress.pct}%` }} />
                 </div>
-                <p className="status-text">
-                  コマ送り中 {progress.done} / {progress.total}（{pct}%）
-                </p>
+                <p className="status-text">{progress.label}</p>
               </>
             )}
-            {status === 'done' && (
-              <div className="done-row">
-                <p className="status-text">{message}</p>
-                <button
-                  type="button"
-                  className="btn btn-primary btn-download"
-                  onClick={handleDownload}
-                >
-                  PDFをダウンロード
-                </button>
-              </div>
-            )}
-            {status === 'error' && <p className="status-text is-error">{message}</p>}
+            {message && <p className="status-text">{message}</p>}
           </section>
         )}
 
-        {thumbs.length > 0 && (
-          <section className="strip" aria-label="抽出したコマ">
-            <h2 className="strip-title">
-              抽出したコマ
-              {frameCount > thumbs.length
-                ? `（先頭 ${thumbs.length} / ${frameCount}）`
-                : `（${frameCount}）`}
-            </h2>
-            <ul className="strip-list">
-              {thumbs.map((frame, index) => (
-                <li key={`${frame.timeSec}-${index}`} className="strip-item">
-                  <img src={frame.dataUrl} alt={`${frame.timeSec.toFixed(1)}秒のコマ`} />
-                  <span>{frame.timeSec.toFixed(1)}s</span>
+        {jobs.length > 0 && (
+          <section className="job-list" aria-label="変換キュー">
+            <h2 className="strip-title">キュー（{jobs.length}）</h2>
+            <ul className="jobs">
+              {jobs.map((job) => (
+                <li key={job.id} className={`job job-${job.status}`}>
+                  <div className="job-main">
+                    <p className="job-name">{job.name}</p>
+                    <p className="job-meta">
+                      <span className="job-badge">{statusLabel(job.status)}</span>
+                      {job.frameCount != null && <span>{job.frameCount} コマ</span>}
+                      {job.error && <span className="job-error">{job.error}</span>}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-tiny"
+                    onClick={() => void handleRemove(job.id)}
+                    disabled={busy && job.status === 'processing'}
+                  >
+                    削除
+                  </button>
                 </li>
               ))}
             </ul>
@@ -304,7 +310,9 @@ function App() {
       </main>
 
       <footer className="footer">
-        <p>処理はブラウザ内だけで完結します。動画はサーバーに送られません。</p>
+        <p>
+          変換は端末内で行います。ページを閉じると処理は一時停止し、次回開いたときに自動で再開します。完了時は通知できます。
+        </p>
       </footer>
     </div>
   )

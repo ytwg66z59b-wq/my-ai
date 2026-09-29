@@ -21,10 +21,10 @@ export type ConvertResult = {
 }
 
 /** Long-edge cap keeps encode/PDF fast even for 4K sources. */
-export const MAX_LONG_EDGE = 1280
-export const JPEG_QUALITY = 0.7
+export const MAX_LONG_EDGE = 960
+export const JPEG_QUALITY = 0.65
 export const THUMB_WIDTH = 120
-export const MAX_THUMBS = 48
+export const MAX_THUMBS = 24
 
 function waitEvent(target: EventTarget, event: string, errorEvent = 'error'): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -148,8 +148,8 @@ export type ConvertOptions = {
 }
 
 /**
- * Seek → downscale JPEG → append PDF page in one pass.
- * Avoids full-res data URLs and jsPDF JPEG recompression.
+ * Seek → downscale JPEG → append PDF page.
+ * Overlaps JPEG encode with the next seek for speed.
  */
 export async function convertVideoToPdf(
   video: HTMLVideoElement,
@@ -178,11 +178,11 @@ export async function convertVideoToPdf(
 
   const { width, height } = scaledSize(srcW, srcH, maxLongEdge)
 
-  const canvas = document.createElement('canvas')
-  canvas.width = width
-  canvas.height = height
-  const ctx = canvas.getContext('2d', { alpha: false })
-  if (!ctx) throw new Error('Canvas を初期化できませんでした')
+  const canvasA = document.createElement('canvas')
+  canvasA.width = width
+  canvasA.height = height
+  const ctxA = canvasA.getContext('2d', { alpha: false })
+  if (!ctxA) throw new Error('Canvas を初期化できませんでした')
 
   const thumbW = Math.min(THUMB_WIDTH, width)
   const thumbH = Math.max(1, Math.round((height / width) * thumbW))
@@ -198,6 +198,15 @@ export async function convertVideoToPdf(
 
   video.pause()
 
+  // Encode canvas (separate from capture) so seek/draw can overlap JPEG encode.
+  const encodeCanvas = document.createElement('canvas')
+  encodeCanvas.width = width
+  encodeCanvas.height = height
+  const encodeCtx = encodeCanvas.getContext('2d', { alpha: false })
+  if (!encodeCtx) throw new Error('Encode Canvas を初期化できませんでした')
+
+  let encodeChain: Promise<void> = Promise.resolve()
+
   for (let i = 0; i < times.length; i += 1) {
     if (signal?.aborted) {
       throw new DOMException('Aborted', 'AbortError')
@@ -206,25 +215,37 @@ export async function convertVideoToPdf(
     const timeSec = times[i]!
     await seekVideo(video, Math.min(timeSec, Math.max(0, duration - 0.001)))
 
-    ctx.drawImage(video, 0, 0, width, height)
-    const jpeg = await canvasToJpegBytes(canvas, jpegQuality)
-    session.addFrame(jpeg)
+    ctxA.drawImage(video, 0, 0, width, height)
 
     if (thumbs.length < MAX_THUMBS) {
-      thumbCtx.drawImage(canvas, 0, 0, thumbW, thumbH)
+      thumbCtx.drawImage(canvasA, 0, 0, thumbW, thumbH)
       thumbs.push({
         timeSec,
         dataUrl: thumbCanvas.toDataURL('image/jpeg', 0.55),
       })
     }
 
-    const now = performance.now()
-    const isLast = i === times.length - 1
-    if (isLast || now - lastProgressAt >= 100) {
-      lastProgressAt = now
-      onProgress?.({ done: i + 1, total: times.length, timeSec })
-    }
+    const snapshot = await createImageBitmap(canvasA)
+    const frameIndex = i
+    encodeChain = encodeChain.then(async () => {
+      encodeCtx.drawImage(snapshot, 0, 0)
+      snapshot.close()
+      const jpeg = await canvasToJpegBytes(encodeCanvas, jpegQuality)
+      session.addFrame(jpeg)
+      const now = performance.now()
+      const isLast = frameIndex === times.length - 1
+      if (isLast || now - lastProgressAt >= 120) {
+        lastProgressAt = now
+        onProgress?.({
+          done: frameIndex + 1,
+          total: times.length,
+          timeSec: times[frameIndex]!,
+        })
+      }
+    })
   }
+
+  await encodeChain
 
   return {
     pdf: session.toBlob(),
