@@ -119,7 +119,11 @@ function App() {
           </span>
           ぶんしょう分けメーカー
         </h1>
-        <p className="subtitle">長い文章を、好きな文字数で分けよう！</p>
+        <p className="subtitle">
+          長い文章を、好きな文字数以内で分けよう！
+          <br />
+          <span className="subtitle-sub">。や、など、区切りのいいところで切るよ</span>
+        </p>
       </header>
 
       <main className="main">
@@ -161,8 +165,9 @@ function App() {
         <section className="card setting-card" aria-labelledby="step2-heading">
           <h2 id="step2-heading" className="step-title">
             <span className="step-badge step-badge-blue">②</span>
-            1行を何文字にする？ <span aria-hidden="true">🔢</span>
+            1行は何文字以内？ <span aria-hidden="true">🔢</span>
           </h2>
+          <p className="setting-hint">区切りのいいところで、それ以下に分けてくれるよ</p>
 
           <div className="number-row">
             <button
@@ -175,7 +180,7 @@ function App() {
             </button>
             <div className="number-box">
               <label className="sr-only" htmlFor={numberId}>
-                1行あたりの文字数
+                1行あたりの最大文字数
               </label>
               <input
                 id={numberId}
@@ -187,7 +192,7 @@ function App() {
                 onChange={(e) => handleCharsChange(e.target.value)}
                 onBlur={() => setCharsPerLine((v) => clampChars(v))}
               />
-              <span className="number-unit">文字</span>
+              <span className="number-unit">文字以内</span>
             </div>
             <button
               type="button"

@@ -1,0 +1,43 @@
+name: Deploy ぶんしょう分け to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages-bunsho
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build:pages
+        env:
+          GITHUB_PAGES: 'true'
+
+      - name: Deploy to /bunsho/ (keep コマPDF at site root)
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          destination_dir: bunsho
+          keep_files: true
+          commit_message: Deploy ぶんしょう分けメーカー to /bunsho/
