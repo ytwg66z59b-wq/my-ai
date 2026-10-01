@@ -1,286 +1,233 @@
-import { useEffect, useId, useRef, useState } from 'react'
-import { countChars, splitText } from './splitText'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  STATUS_META,
+  createId,
+  formatClock,
+  minutesFromDate,
+  sortMembersByAvailability,
+  summarizeAvailability,
+  type Member,
+  type ScheduleBlock,
+} from './availability'
+import { ScheduleBar } from './ScheduleBar'
+import { createDemoMembers } from './seed'
 import './App.css'
 
-const PRESETS = [6, 8, 10, 12] as const
-const MIN_CHARS = 1
-const MAX_CHARS = 100
-const COPY_RESET_MS = 2000
+const STORAGE_KEY = 'ima-furu-members-v1'
+
+function loadMembers(): Member[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return createDemoMembers()
+    const parsed = JSON.parse(raw) as Member[]
+    if (!Array.isArray(parsed) || parsed.length === 0) return createDemoMembers()
+    return parsed
+  } catch {
+    return createDemoMembers()
+  }
+}
 
 function App() {
-  const [text, setText] = useState('')
-  const [charsPerLine, setCharsPerLine] = useState(8)
-  const [copiedIndex, setCopiedIndex] = useState<number | null>(null)
-  const [copiedAll, setCopiedAll] = useState(false)
-  const [burstKey, setBurstKey] = useState(0)
-  const copyTimer = useRef<number | null>(null)
-  const copyAllTimer = useRef<number | null>(null)
-  const textareaId = useId()
-  const numberId = useId()
-
-  const charCount = countChars(text)
-  const lines = splitText(text, charsPerLine)
+  const [now, setNow] = useState(() => new Date())
+  const [members, setMembers] = useState<Member[]>(() => loadMembers())
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [draftName, setDraftName] = useState('')
 
   useEffect(() => {
-    return () => {
-      if (copyTimer.current) window.clearTimeout(copyTimer.current)
-      if (copyAllTimer.current) window.clearTimeout(copyAllTimer.current)
-    }
+    const id = window.setInterval(() => setNow(new Date()), 15_000)
+    return () => window.clearInterval(id)
   }, [])
 
-  function clampChars(value: number) {
-    if (Number.isNaN(value)) return charsPerLine
-    return Math.min(MAX_CHARS, Math.max(MIN_CHARS, value))
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(members))
+  }, [members])
+
+  const nowMin = minutesFromDate(now)
+  const ranked = useMemo(
+    () => sortMembersByAvailability(members, nowMin),
+    [members, nowMin],
+  )
+  const summary = useMemo(
+    () => summarizeAvailability(members, nowMin),
+    [members, nowMin],
+  )
+
+  function updateBlocks(memberId: string, blocks: ScheduleBlock[]) {
+    setMembers((prev) =>
+      prev.map((m) => (m.id === memberId ? { ...m, blocks } : m)),
+    )
   }
 
-  function handleCharsChange(raw: string) {
-    const digits = raw.replace(/[^\d]/g, '')
-    if (digits === '') {
-      setCharsPerLine(MIN_CHARS)
-      return
-    }
-    setCharsPerLine(clampChars(Number(digits)))
+  function addMember() {
+    const name = draftName.trim()
+    if (!name) return
+    const id = createId('member')
+    setMembers((prev) => [
+      ...prev,
+      {
+        id,
+        name,
+        blocks: [
+          {
+            id: createId('block'),
+            startMin: Math.max(8 * 60, nowMin),
+            endMin: Math.min(24 * 60, Math.max(8 * 60, nowMin) + 60),
+            status: 'immediate',
+          },
+        ],
+      },
+    ])
+    setDraftName('')
+    setExpandedId(id)
   }
 
-  async function copyText(value: string) {
-    try {
-      await navigator.clipboard.writeText(value)
-      return true
-    } catch {
-      // Fallback for environments without clipboard permission
-      const ta = document.createElement('textarea')
-      ta.value = value
-      ta.setAttribute('readonly', '')
-      ta.style.position = 'fixed'
-      ta.style.left = '-9999px'
-      document.body.appendChild(ta)
-      ta.select()
-      const ok = document.execCommand('copy')
-      document.body.removeChild(ta)
-      return ok
-    }
+  function removeMember(id: string) {
+    setMembers((prev) => prev.filter((m) => m.id !== id))
+    if (expandedId === id) setExpandedId(null)
   }
 
-  async function handleCopyLine(line: string, index: number) {
-    const ok = await copyText(line)
-    if (!ok) return
-    setCopiedIndex(index)
-    setBurstKey((k) => k + 1)
-    if (copyTimer.current) window.clearTimeout(copyTimer.current)
-    copyTimer.current = window.setTimeout(() => setCopiedIndex(null), COPY_RESET_MS)
-  }
-
-  async function handleCopyAll() {
-    if (lines.length === 0) return
-    const ok = await copyText(lines.join('\n'))
-    if (!ok) return
-    setCopiedAll(true)
-    setBurstKey((k) => k + 1)
-    if (copyAllTimer.current) window.clearTimeout(copyAllTimer.current)
-    copyAllTimer.current = window.setTimeout(() => setCopiedAll(false), COPY_RESET_MS)
-  }
-
-  function handleClear() {
-    setText('')
-    setCopiedIndex(null)
-    setCopiedAll(false)
-  }
-
-  function bumpChars(delta: number) {
-    setCharsPerLine((prev) => clampChars(prev + delta))
+  function resetDemo() {
+    const next = createDemoMembers(new Date())
+    setMembers(next)
+    setExpandedId(null)
   }
 
   return (
-    <div className="page">
-      <div className="bg-blobs" aria-hidden="true">
-        <span className="blob blob-pink" />
-        <span className="blob blob-blue" />
-        <span className="blob blob-yellow" />
-      </div>
+    <div className="app">
+      <div className="atmosphere" aria-hidden />
 
       <header className="hero">
-        <div className="decor decor-star" aria-hidden="true">
-          ✦
-        </div>
-        <div className="decor decor-pencil" aria-hidden="true">
-          ✏️
-        </div>
-        <div className="decor decor-heart" aria-hidden="true">
-          ♡
-        </div>
-        <div className="decor decor-paper" aria-hidden="true">
-          📄
-        </div>
-
-        <p className="eyebrow">かわいく分けちゃうよ</p>
-        <h1 className="title">
-          <span className="title-icon" aria-hidden="true">
-            ✂️
-          </span>
-          ぶんしょう分けメーカー
-        </h1>
-        <p className="subtitle">長い文章を、好きな文字数で分けよう！</p>
+        <p className="brand">いま振る</p>
+        <h1 className="tagline">今、誰に仕事を振る？</h1>
+        <p className="lede">
+          稼働を一目で見て、振り先を直感で決めるシフトボード。
+        </p>
       </header>
 
-      <main className="main">
-        <section className="card input-card" aria-labelledby="step1-heading">
-          <div className="card-head">
-            <h2 id="step1-heading" className="step-title">
-              <span className="step-badge">①</span>
-              文章を入れてね <span aria-hidden="true">✏️</span>
-            </h2>
-            <button
-              type="button"
-              className="btn btn-clear"
-              onClick={handleClear}
-              disabled={!text}
-            >
-              🗑️ クリア
-            </button>
-          </div>
+      <section className="status-board" aria-live="polite">
+        <div className="status-time">
+          <span className="status-time-label">現在</span>
+          <time dateTime={now.toISOString()}>{formatClock(nowMin)}</time>
+        </div>
+        <ul className="status-counts">
+          <li className="count immediate">
+            <span>{STATUS_META.immediate.emoji}</span>
+            <span>
+              {STATUS_META.immediate.long}
+              <strong>{summary.immediate}人</strong>
+            </span>
+          </li>
+          <li className="count soon">
+            <span>{STATUS_META.soon.emoji}</span>
+            <span>
+              {STATUS_META.soon.long}
+              <strong>{summary.soon}人</strong>
+            </span>
+          </li>
+          <li className="count unavailable">
+            <span>{STATUS_META.unavailable.emoji}</span>
+            <span>
+              {STATUS_META.unavailable.long}
+              <strong>{summary.unavailable}人</strong>
+            </span>
+          </li>
+        </ul>
+      </section>
 
-          <label className="sr-only" htmlFor={textareaId}>
-            分けたい文章
-          </label>
-          <textarea
-            id={textareaId}
-            className="text-input"
-            placeholder="ここに長い文章を書いてね…"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={6}
-            inputMode="text"
-            autoComplete="off"
-            spellCheck={false}
-          />
-          <p className="char-live" aria-live="polite">
-            いま <strong>{charCount}</strong> 文字 入ってるよ！
-          </p>
-        </section>
+      <section className="dispatch">
+        <div className="section-head">
+          <h2>今、誰に振る？</h2>
+          <p>対応できる人から上に並びます</p>
+        </div>
 
-        <section className="card setting-card" aria-labelledby="step2-heading">
-          <h2 id="step2-heading" className="step-title">
-            <span className="step-badge step-badge-blue">②</span>
-            1行を何文字にする？ <span aria-hidden="true">🔢</span>
-          </h2>
-
-          <div className="number-row">
-            <button
-              type="button"
-              className="btn btn-stepper"
-              onClick={() => bumpChars(-1)}
-              aria-label="1文字減らす"
-            >
-              −
-            </button>
-            <div className="number-box">
-              <label className="sr-only" htmlFor={numberId}>
-                1行あたりの文字数
-              </label>
-              <input
-                id={numberId}
-                className="number-input"
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={charsPerLine}
-                onChange={(e) => handleCharsChange(e.target.value)}
-                onBlur={() => setCharsPerLine((v) => clampChars(v))}
-              />
-              <span className="number-unit">文字</span>
-            </div>
-            <button
-              type="button"
-              className="btn btn-stepper"
-              onClick={() => bumpChars(1)}
-              aria-label="1文字増やす"
-            >
-              ＋
-            </button>
-          </div>
-
-          <div className="presets" role="group" aria-label="文字数プリセット">
-            {PRESETS.map((n) => (
-              <button
-                key={n}
-                type="button"
-                className={`btn btn-preset${charsPerLine === n ? ' is-active' : ''}`}
-                onClick={() => setCharsPerLine(n)}
-                aria-pressed={charsPerLine === n}
+        <ol className="member-list">
+          {ranked.map((member, index) => {
+            const meta = STATUS_META[member.availability.status]
+            const open = expandedId === member.id
+            return (
+              <li
+                key={member.id}
+                className={`member-row status-${member.availability.status} ${open ? 'open' : ''}`}
               >
-                {n}文字
-              </button>
-            ))}
-          </div>
-        </section>
+                <button
+                  type="button"
+                  className="member-main"
+                  onClick={() =>
+                    setExpandedId((prev) =>
+                      prev === member.id ? null : member.id,
+                    )
+                  }
+                  aria-expanded={open}
+                >
+                  <span className="rank" aria-hidden>
+                    {index + 1}
+                  </span>
+                  <span className="member-status" aria-hidden>
+                    {meta.emoji}
+                  </span>
+                  <span className="member-body">
+                    <span className="member-name">{member.name}</span>
+                    <span className="member-ready">
+                      {member.availability.label}
+                    </span>
+                  </span>
+                  <span className="member-badge">{meta.short}</span>
+                </button>
 
-        <section className="card result-card" aria-labelledby="step3-heading">
-          <h2 id="step3-heading" className="step-title result-heading">
-            <span className="step-badge step-badge-yellow">③</span>
-            できあがり！ <span aria-hidden="true">🎉</span>
-          </h2>
-
-          {lines.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-illus" aria-hidden="true">
-                <span>✨</span>
-                <span>📝</span>
-                <span>✨</span>
-              </div>
-              <p>
-                ここに文章を入れると、
-                <br />
-                きれいに分けてくれるよ ✨
-              </p>
-            </div>
-          ) : (
-            <>
-              <button
-                type="button"
-                className={`btn btn-copy-all${copiedAll ? ' is-success' : ''}`}
-                onClick={handleCopyAll}
-              >
-                {copiedAll ? '🎉 ぜんぶコピーしたよ！' : '📋 ぜんぶコピー！'}
-              </button>
-              <p className="result-summary" aria-live="polite">
-                全部で <strong>{lines.length}</strong> 行になったよ！
-              </p>
-              <ul className="result-list">
-                {lines.map((line, index) => {
-                  const isCopied = copiedIndex === index
-                  return (
-                    <li
-                      key={`${index}-${line}`}
-                      className="result-item"
-                      style={{ animationDelay: `${Math.min(index, 12) * 40}ms` }}
-                    >
-                      <p className="result-text">{line}</p>
+                {open && (
+                  <div className="member-editor">
+                    <ScheduleBar
+                      blocks={member.blocks}
+                      nowMin={nowMin}
+                      onChange={(blocks) => updateBlocks(member.id, blocks)}
+                    />
+                    <div className="member-actions">
                       <button
                         type="button"
-                        className={`btn btn-copy${isCopied ? ' is-success' : ''}`}
-                        onClick={() => handleCopyLine(line, index)}
+                        className="ghost-btn danger"
+                        onClick={() => removeMember(member.id)}
                       >
-                        {isCopied ? '✓ コピーしたよ！' : '📋 コピー'}
+                        メンバーを削除
                       </button>
-                    </li>
-                  )
-                })}
-              </ul>
-            </>
-          )}
-        </section>
-      </main>
+                    </div>
+                  </div>
+                )}
+              </li>
+            )
+          })}
+        </ol>
+      </section>
 
-      {burstKey > 0 && (
-        <div key={burstKey} className="sparkle-burst" aria-hidden="true">
-          <span>✦</span>
-          <span>★</span>
-          <span>✦</span>
-        </div>
-      )}
+      <section className="add-member">
+        <h2>メンバー追加</h2>
+        <form
+          className="add-form"
+          onSubmit={(e) => {
+            e.preventDefault()
+            addMember()
+          }}
+        >
+          <label className="sr-only" htmlFor="member-name">
+            名前
+          </label>
+          <input
+            id="member-name"
+            value={draftName}
+            onChange={(e) => setDraftName(e.target.value)}
+            placeholder="名前を入力"
+            autoComplete="off"
+          />
+          <button type="submit" className="primary-btn">
+            追加
+          </button>
+        </form>
+        <button type="button" className="ghost-btn" onClick={resetDemo}>
+          デモデータを入れ直す
+        </button>
+      </section>
 
       <footer className="footer">
-        <p>文章を入れて、数字を決めたら、ポンっと分けてくれるよ</p>
+        <p>シフト管理ではなく、振り先判断のためのボード</p>
       </footer>
     </div>
   )
