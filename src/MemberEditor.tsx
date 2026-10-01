@@ -9,7 +9,6 @@ import {
   cloneBlocks,
   createId,
   effectiveBlocks,
-  emptyDayPlan,
   formatClock,
   formatDateLabel,
   resolveDayPlan,
@@ -27,11 +26,9 @@ type Clipboard =
   | { kind: 'day'; plan: DayPlan }
 
 type MemberEditorProps = {
-  members: Member[]
-  activeMemberId: string
+  member: Member
   dateKey: string
   nowMin: number
-  onSelectMember: (id: string) => void
   onChangeDate: (dateKey: string) => void
   onUpdateDay: (memberId: string, plan: DayPlan) => void
   onSaveTemplate: (memberId: string, weekday: number, template: WeekdayTemplate) => void
@@ -57,18 +54,15 @@ function nudgeTime(
 }
 
 export function MemberEditor({
-  members,
-  activeMemberId,
+  member,
   dateKey,
   nowMin,
-  onSelectMember,
   onChangeDate,
   onUpdateDay,
   onSaveTemplate,
 }: MemberEditorProps) {
-  const member = members.find((m) => m.id === activeMemberId) ?? members[0]
   const plan = useMemo(
-    () => (member ? resolveDayPlan(member, dateKey) : emptyDayPlan(dateKey)),
+    () => resolveDayPlan(member, dateKey),
     [member, dateKey],
   )
   const [clipboard, setClipboard] = useState<Clipboard | null>(null)
@@ -76,10 +70,6 @@ export function MemberEditor({
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [guideOpen, setGuideOpen] = useState(true)
   const touchStartX = useRef<number | null>(null)
-
-  if (!member) {
-    return <p className="empty-note">メンバーを追加してください。</p>
-  }
 
   function flashSaved() {
     setSavedFlash(true)
@@ -199,23 +189,9 @@ export function MemberEditor({
   return (
     <section className="member-editor-screen">
       <div className="section-head">
-        <h2>自分の空き時間</h2>
-        <p>空き時間を追加して、時間を直感的に直します。変更は自動保存されます。</p>
+        <h2>{member.name} の空き時間</h2>
+        <p>自分の予定だけ編集できます。変更は自動保存されます。</p>
       </div>
-
-      <label className="field">
-        <span>メンバー</span>
-        <select
-          value={member.id}
-          onChange={(e) => onSelectMember(e.target.value)}
-        >
-          {members.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name}
-            </option>
-          ))}
-        </select>
-      </label>
 
       <div
         className="date-swiper"

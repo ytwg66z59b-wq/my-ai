@@ -161,6 +161,11 @@ export function AdminBoard({
             <h2>今、対応できる人</h2>
             <p>現在時刻を基準に並べています</p>
           </div>
+          {ranked.length === 0 && (
+            <p className="empty-board">
+              まだメンバーがいません。「自分のシフト」から名前を登録して始めてください。
+            </p>
+          )}
           <ol className="member-list">
             {ranked.map((m, index) => {
               const meta = STATUS_META[m.availability.status]
@@ -200,6 +205,9 @@ export function AdminBoard({
 
       {range === 'week' && (
         <div className="week-grid">
+          {ranked.length === 0 && (
+            <p className="empty-board">まだメンバーがいません。</p>
+          )}
           {ranked.map((m) => (
             <article key={m.id} className="week-card">
               <h3>{m.name}</h3>
@@ -246,6 +254,9 @@ export function AdminBoard({
 
       {range === 'month' && (
         <div className="month-list">
+          {ranked.length === 0 && (
+            <p className="empty-board">まだメンバーがいません。</p>
+          )}
           {ranked.map((m) => {
             const total = monthKeys.reduce(
               (sum, key) => sum + countAvailableMinutes(resolveDayPlan(m, key)),

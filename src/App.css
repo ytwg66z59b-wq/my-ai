@@ -58,6 +58,114 @@ button, input, select { font: inherit; }
 
 .app > * { position: relative; z-index: 1; }
 
+.auth-gate {
+  padding: 1.5rem 0.2rem 2rem;
+  animation: rise 0.55s ease both;
+}
+
+.auth-form {
+  display: grid;
+  gap: 0.55rem;
+  margin: 1.2rem 0 1.4rem;
+  padding: 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-strong);
+}
+
+.auth-form label {
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+}
+
+.auth-form input {
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 1.05rem;
+}
+
+.field-error {
+  margin: 0;
+  color: var(--stop);
+  font-size: 0.85rem;
+}
+
+.existing-accounts {
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.existing-accounts h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+}
+
+.existing-accounts p {
+  margin: 0.35rem 0 0.75rem;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.existing-accounts ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.existing-accounts button {
+  width: 100%;
+  padding: 0.8rem 0.95rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.existing-accounts button:hover {
+  border-color: rgba(14, 107, 92, 0.4);
+  background: #eef7f3;
+}
+
+.session-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel-strong);
+  font-size: 0.9rem;
+}
+
+.session-bar strong {
+  font-family: var(--font-display);
+  color: var(--accent);
+}
+
+.empty-board {
+  margin: 0 0 0.85rem;
+  padding: 1rem;
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
 .app-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
