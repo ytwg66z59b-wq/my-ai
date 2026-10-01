@@ -1,5 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import {
+  DAY_MINUTES,
+  SLOT_MINUTES,
   STATUS_META,
   WEEKDAY_LABELS,
   addDays,
@@ -14,6 +16,7 @@ import {
   type DayMode,
   type DayPlan,
   type Member,
+  type ReplyStatus,
   type ScheduleBlock,
   type WeekdayTemplate,
 } from './availability'
@@ -34,6 +37,25 @@ type MemberEditorProps = {
   onSaveTemplate: (memberId: string, weekday: number, template: WeekdayTemplate) => void
 }
 
+function nudgeTime(
+  block: ScheduleBlock,
+  edge: 'start' | 'end',
+  delta: number,
+): ScheduleBlock {
+  if (edge === 'start') {
+    const startMin = Math.max(
+      0,
+      Math.min(block.startMin + delta, block.endMin - SLOT_MINUTES),
+    )
+    return { ...block, startMin }
+  }
+  const endMin = Math.min(
+    DAY_MINUTES,
+    Math.max(block.endMin + delta, block.startMin + SLOT_MINUTES),
+  )
+  return { ...block, endMin }
+}
+
 export function MemberEditor({
   members,
   activeMemberId,
@@ -51,6 +73,8 @@ export function MemberEditor({
   )
   const [clipboard, setClipboard] = useState<Clipboard | null>(null)
   const [savedFlash, setSavedFlash] = useState(false)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [guideOpen, setGuideOpen] = useState(true)
   const touchStartX = useRef<number | null>(null)
 
   if (!member) {
@@ -67,13 +91,35 @@ export function MemberEditor({
     flashSaved()
   }
 
+  function updateBlocks(blocks: ScheduleBlock[]) {
+    commit({ dateKey, mode: 'timed', blocks })
+  }
+
+  function updateOne(
+    blockId: string,
+    updater: (block: ScheduleBlock) => ScheduleBlock | null,
+  ) {
+    const next: ScheduleBlock[] = []
+    for (const block of plan.blocks) {
+      if (block.id !== blockId) {
+        next.push(block)
+        continue
+      }
+      const result = updater(block)
+      if (result) next.push(result)
+    }
+    updateBlocks(next)
+  }
+
   function setMode(mode: DayMode) {
     if (mode === 'off') {
       commit({ dateKey, mode, blocks: [] })
+      setSelectedId(null)
       return
     }
     if (mode === 'all-day') {
       commit({ dateKey, mode, blocks: allDayBlocks() })
+      setSelectedId(null)
       return
     }
     const blocks =
@@ -88,6 +134,7 @@ export function MemberEditor({
             },
           ]
     commit({ dateKey, mode: 'timed', blocks })
+    setSelectedId(blocks[0]?.id ?? null)
   }
 
   function pasteToDate(targetKey: string) {
@@ -123,17 +170,37 @@ export function MemberEditor({
     flashSaved()
   }
 
+  function addBlock() {
+    const last = [...plan.blocks].sort((a, b) => a.endMin - b.endMin).at(-1)
+    const startMin = Math.min(
+      DAY_MINUTES - 60,
+      last ? last.endMin + SLOT_MINUTES : 9 * 60,
+    )
+    const created: ScheduleBlock = {
+      id: createId('block'),
+      startMin,
+      endMin: Math.min(DAY_MINUTES, startMin + 60),
+      status: 'immediate',
+    }
+    updateBlocks([...plan.blocks, created])
+    setSelectedId(created.id)
+  }
+
   const weekday = new Date(
     Number(dateKey.slice(0, 4)),
     Number(dateKey.slice(5, 7)) - 1,
     Number(dateKey.slice(8, 10)),
   ).getDay()
 
+  const sortedBlocks = plan.blocks
+    .slice()
+    .sort((a, b) => a.startMin - b.startMin)
+
   return (
     <section className="member-editor-screen">
       <div className="section-head">
         <h2>自分の空き時間</h2>
-        <p>タップ・ドラッグ・長押しで直感的に編集。変更は自動保存されます。</p>
+        <p>空き時間を追加して、時間を直感的に直します。変更は自動保存されます。</p>
       </div>
 
       <label className="field">
@@ -226,50 +293,201 @@ export function MemberEditor({
 
       {plan.mode === 'timed' && (
         <>
-          <div className="block-list">
-            {plan.blocks.length === 0 && (
-              <p className="mode-note">下のタイムラインをタップして空き時間を追加してください。</p>
+          <div className="howto-card">
+            <button
+              type="button"
+              className="howto-toggle"
+              onClick={() => setGuideOpen((v) => !v)}
+              aria-expanded={guideOpen}
+            >
+              <span>初めての方向け：編集のしかた</span>
+              <span>{guideOpen ? '閉じる' : '見る'}</span>
+            </button>
+            {guideOpen && (
+              <ol className="howto-steps">
+                <li>
+                  <strong>① 追加</strong>
+                  <span>下の「＋ 対応可能時間を追加」を押すか、タイムラインの空きをタップ</span>
+                </li>
+                <li>
+                  <strong>② 時間を直す</strong>
+                  <span>カードの − / ＋ か、バーの左右の端を指で伸ばす</span>
+                </li>
+                <li>
+                  <strong>③ ずらす</strong>
+                  <span>バーの中央を左右にドラッグすると、まとめて移動</span>
+                </li>
+                <li>
+                  <strong>④ 状態を変える</strong>
+                  <span>カードの 🟢🟡🔴 を押すか、バーを長押ししてメニュー</span>
+                </li>
+              </ol>
             )}
-            {plan.blocks
-              .slice()
-              .sort((a, b) => a.startMin - b.startMin)
-              .map((b) => (
-                <div key={b.id} className={`chip status-${b.status}`}>
-                  {STATUS_META[b.status].emoji} {formatClock(b.startMin)}–
-                  {formatClock(b.endMin)}
-                </div>
-              ))}
           </div>
 
-          <ScheduleTimeline
-            blocks={plan.blocks}
-            nowMin={nowMin}
-            editable
-            onChange={(blocks) => commit({ dateKey, mode: 'timed', blocks })}
-            onCopyBlock={(block) =>
-              setClipboard({ kind: 'block', block: { ...block } })
-            }
-          />
+          <div className="block-cards">
+            {sortedBlocks.length === 0 && (
+              <p className="mode-note">
+                まだ時間がありません。「＋ 対応可能時間を追加」から始めましょう。
+              </p>
+            )}
+            {sortedBlocks.map((block, index) => {
+              const meta = STATUS_META[block.status]
+              const selected = selectedId === block.id
+              const hours =
+                Math.round(((block.endMin - block.startMin) / 60) * 10) / 10
+              return (
+                <article
+                  key={block.id}
+                  className={`block-card status-${block.status} ${selected ? 'selected' : ''}`}
+                >
+                  <button
+                    type="button"
+                    className="block-card-main"
+                    onClick={() =>
+                      setSelectedId((prev) =>
+                        prev === block.id ? null : block.id,
+                      )
+                    }
+                  >
+                    <span className="block-index">{index + 1}</span>
+                    <span className="block-times">
+                      <strong>{formatClock(block.startMin)}</strong>
+                      <span className="block-tilde">〜</span>
+                      <strong>{formatClock(block.endMin)}</strong>
+                    </span>
+                    <span className="block-meta">
+                      {meta.emoji} {meta.short} · {hours}時間
+                    </span>
+                  </button>
 
-          <button
-            type="button"
-            className="primary-btn full"
-            onClick={() => {
-              const start = 9 * 60
-              const blocks = [
-                ...plan.blocks,
-                {
-                  id: createId('block'),
-                  startMin: start,
-                  endMin: start + 60,
-                  status: 'immediate' as const,
-                },
-              ]
-              commit({ dateKey, mode: 'timed', blocks })
-            }}
-          >
+                  {selected && (
+                    <div className="block-card-editor">
+                      <p className="block-edit-guide">
+                        ここでも時間を直せます（15分単位）。バーを触っても同じです。
+                      </p>
+                      <div className="time-steppers">
+                        <div className="stepper">
+                          <span>開始</span>
+                          <div className="stepper-controls">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateOne(block.id, (b) =>
+                                  nudgeTime(b, 'start', -SLOT_MINUTES),
+                                )
+                              }
+                            >
+                              −15
+                            </button>
+                            <strong>{formatClock(block.startMin)}</strong>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateOne(block.id, (b) =>
+                                  nudgeTime(b, 'start', SLOT_MINUTES),
+                                )
+                              }
+                            >
+                              ＋15
+                            </button>
+                          </div>
+                        </div>
+                        <div className="stepper">
+                          <span>終了</span>
+                          <div className="stepper-controls">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateOne(block.id, (b) =>
+                                  nudgeTime(b, 'end', -SLOT_MINUTES),
+                                )
+                              }
+                            >
+                              −15
+                            </button>
+                            <strong>{formatClock(block.endMin)}</strong>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateOne(block.id, (b) =>
+                                  nudgeTime(b, 'end', SLOT_MINUTES),
+                                )
+                              }
+                            >
+                              ＋15
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="status-picks" role="group" aria-label="状態">
+                        {(
+                          ['immediate', 'soon', 'unavailable'] as ReplyStatus[]
+                        ).map((status) => (
+                          <button
+                            key={status}
+                            type="button"
+                            className={`status-pick ${block.status === status ? 'active' : ''}`}
+                            onClick={() =>
+                              updateOne(block.id, (b) => ({ ...b, status }))
+                            }
+                          >
+                            {STATUS_META[status].emoji}
+                            <span>{STATUS_META[status].short}</span>
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="block-card-actions">
+                        <button
+                          type="button"
+                          className="ghost-btn"
+                          onClick={() =>
+                            setClipboard({ kind: 'block', block: { ...block } })
+                          }
+                        >
+                          📋 コピー
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost-btn danger"
+                          onClick={() => {
+                            updateOne(block.id, () => null)
+                            setSelectedId(null)
+                          }}
+                        >
+                          🗑 削除
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </article>
+              )
+            })}
+          </div>
+
+          <button type="button" className="primary-btn full" onClick={addBlock}>
             ＋ 対応可能時間を追加
           </button>
+
+          <div className="timeline-panel">
+            <div className="timeline-panel-head">
+              <h3>タイムラインで調整</h3>
+              <p>バーの端を伸ばす・中央を動かすと、上の時間も連動します</p>
+            </div>
+            <ScheduleTimeline
+              blocks={plan.blocks}
+              nowMin={nowMin}
+              editable
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+              onChange={updateBlocks}
+              onCopyBlock={(block) =>
+                setClipboard({ kind: 'block', block: { ...block } })
+              }
+            />
+          </div>
         </>
       )}
 

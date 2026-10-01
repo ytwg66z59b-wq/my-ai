@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  DAY_MINUTES,
   SLOT_MINUTES,
   STATUS_META,
   VIEW_END,
@@ -28,6 +27,8 @@ type ScheduleTimelineProps = {
   editable?: boolean
   showNowLine?: boolean
   compact?: boolean
+  selectedId?: string | null
+  onSelect?: (blockId: string | null) => void
   onChange?: (blocks: ScheduleBlock[]) => void
   onCopyBlock?: (block: ScheduleBlock) => void
 }
@@ -47,6 +48,8 @@ export function ScheduleTimeline({
   editable = false,
   showNowLine = true,
   compact = false,
+  selectedId: selectedIdProp = null,
+  onSelect,
   onChange,
   onCopyBlock,
 }: ScheduleTimelineProps) {
@@ -62,7 +65,13 @@ export function ScheduleTimeline({
   } | null>(null)
   const longPressRef = useRef<number | null>(null)
   const [menu, setMenu] = useState<MenuState>(null)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [localSelected, setLocalSelected] = useState<string | null>(null)
+  const selectedId = selectedIdProp ?? localSelected
+
+  function select(id: string | null) {
+    setLocalSelected(id)
+    onSelect?.(id)
+  }
 
   useEffect(() => {
     blocksRef.current = blocks
@@ -140,7 +149,7 @@ export function ScheduleTimeline({
     clearLongPress()
     const block = blocks.find((b) => b.id === blockId)
     if (!block) return
-    setSelectedId(blockId)
+    select(blockId)
     dragRef.current = {
       blockId,
       mode,
@@ -151,7 +160,7 @@ export function ScheduleTimeline({
   }
 
   function openMenu(blockId: string, clientX: number, clientY: number) {
-    setSelectedId(blockId)
+    select(blockId)
     setMenu({ blockId, x: clientX, y: clientY })
   }
 
@@ -194,7 +203,7 @@ export function ScheduleTimeline({
       status: 'immediate',
     }
     onChange([...blocks, created])
-    setSelectedId(created.id)
+    select(created.id)
   }
 
   const hours: number[] = []
@@ -203,16 +212,22 @@ export function ScheduleTimeline({
   }
   const nowVisible = nowMin >= VIEW_START && nowMin <= VIEW_END
   const menuBlock = menu ? blocks.find((b) => b.id === menu.blockId) : null
+  const selectedBlock = selectedId
+    ? blocks.find((b) => b.id === selectedId)
+    : null
 
   return (
     <div className={`timeline ${compact ? 'compact' : ''} ${editable ? 'editable' : ''}`}>
-      {!compact && editable && (
-        <div className="timeline-legend">
-          <span>8:00</span>
-          <span>端＝時間変更 · 中央＝移動 · 長押し＝メニュー · 空きタップ＝追加</span>
-          <span>24:00</span>
+      {!compact && (
+        <div className="timeline-hours" aria-hidden>
+          {hours.map((h) => (
+            <span key={h} style={{ left: `${pct(h * 60)}%` }}>
+              {h}:00
+            </span>
+          ))}
         </div>
       )}
+
       <div
         className="timeline-track"
         ref={trackRef}
@@ -223,11 +238,9 @@ export function ScheduleTimeline({
           {hours.map((h) => (
             <span
               key={h}
-              className="timeline-tick"
+              className="timeline-tick-line"
               style={{ left: `${pct(h * 60)}%` }}
-            >
-              {String(h).padStart(2, '0')}
-            </span>
+            />
           ))}
         </div>
 
@@ -238,7 +251,7 @@ export function ScheduleTimeline({
             title={`現在 ${formatClock(nowMin)}`}
           >
             {!compact && (
-              <span className="timeline-now-label">{formatClock(nowMin)}</span>
+              <span className="timeline-now-label">今 {formatClock(nowMin)}</span>
             )}
           </div>
         )}
@@ -248,9 +261,11 @@ export function ScheduleTimeline({
           .map((block) => {
             const left = Math.max(0, pct(block.startMin))
             const right = Math.min(100, pct(block.endMin))
-            const width = Math.max(right - left, compact ? 0.8 : 1.2)
+            const width = Math.max(right - left, compact ? 0.8 : 2)
             const meta = STATUS_META[block.status]
             const selected = selectedId === block.id
+            const durationMin = block.endMin - block.startMin
+            const showInlineTime = !compact && width >= 10
             return (
               <div
                 key={block.id}
@@ -260,7 +275,7 @@ export function ScheduleTimeline({
                 onPointerDown={(e) => {
                   if (!editable) return
                   e.stopPropagation()
-                  setSelectedId(block.id)
+                  select(block.id)
                   longPressRef.current = window.setTimeout(() => {
                     openMenu(block.id, e.clientX, e.clientY)
                   }, 480)
@@ -285,7 +300,10 @@ export function ScheduleTimeline({
                   <span
                     className="timeline-handle start"
                     onPointerDown={(e) => startDrag(e, block.id, 'start')}
-                  />
+                    aria-label="開始時間を変更"
+                  >
+                    <span className="handle-time">{formatClock(block.startMin)}</span>
+                  </span>
                 )}
                 <span
                   className="timeline-block-body"
@@ -294,23 +312,43 @@ export function ScheduleTimeline({
                     startDrag(e, block.id, 'move')
                   }}
                 >
-                  {!compact && (
+                  {showInlineTime ? (
                     <span className="timeline-block-label">
-                      {meta.emoji} {formatClock(block.startMin)}–
-                      {formatClock(block.endMin)}
+                      <strong>
+                        {formatClock(block.startMin)}–{formatClock(block.endMin)}
+                      </strong>
+                      <em>
+                        {meta.emoji} {Math.round(durationMin / 60 * 10) / 10}時間
+                      </em>
                     </span>
+                  ) : (
+                    !compact && (
+                      <span className="timeline-block-label short">
+                        {meta.emoji}
+                      </span>
+                    )
                   )}
                 </span>
                 {editable && (
                   <span
                     className="timeline-handle end"
                     onPointerDown={(e) => startDrag(e, block.id, 'end')}
-                  />
+                    aria-label="終了時間を変更"
+                  >
+                    <span className="handle-time">{formatClock(block.endMin)}</span>
+                  </span>
                 )}
               </div>
             )
           })}
       </div>
+
+      {!compact && editable && selectedBlock && (
+        <p className="timeline-selected-hint" aria-live="polite">
+          選択中: <strong>{formatClock(selectedBlock.startMin)}–{formatClock(selectedBlock.endMin)}</strong>
+          （左端＝開始 / 右端＝終了 / 中央＝移動 / 長押し＝メニュー）
+        </p>
+      )}
 
       {menu && menuBlock && editable && (
         <div
@@ -406,18 +444,12 @@ export function ScheduleTimeline({
             onClick={() => {
               updateBlock(menuBlock.id, () => null)
               setMenu(null)
+              select(null)
             }}
           >
             🗑 削除
           </button>
         </div>
-      )}
-
-      {!compact && editable && (
-        <p className="timeline-hint">
-          1マス = {SLOT_MINUTES}分 · 表示 {formatClock(VIEW_START)}–
-          {formatClock(VIEW_END)} · 全{DAY_MINUTES / SLOT_MINUTES}スロット
-        </p>
       )}
     </div>
   )

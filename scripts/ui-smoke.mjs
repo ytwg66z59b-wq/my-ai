@@ -21,76 +21,56 @@ function ok(name, pass, detail = '') {
   console.log(`${pass ? 'PASS' : 'FAIL'}: ${name}${detail ? ' — ' + detail : ''}`)
 }
 
-const brand = await page.$eval('.brand', (el) => el.textContent.trim())
-ok('admin brand', brand === 'いま振る', brand)
-
 ok(
-  'admin tabs',
-  (await page.$eval('.app-tabs button.active', (el) => el.textContent.trim())) ===
-    '管理画面',
+  'admin brand',
+  (await page.$eval('.brand', (el) => el.textContent.trim())) === 'いま振る',
 )
-
-const counts = await page.$$eval('.status-counts .count strong', (els) =>
-  els.map((el) => el.textContent.trim()),
-)
-ok('status counts', counts.length === 3, counts.join(','))
-
-ok('day timelines', (await page.$$('.timeline-track')).length >= 1)
 
 await page.click('.app-tabs button:nth-child(2)')
 await page.waitForSelector('.mode-grid')
-ok('member editor opens', true)
-
 await page.click('.mode-btn.timed')
-await page.waitForSelector('.timeline.editable')
+await page.waitForSelector('.howto-card')
+ok('howto guide visible', true)
 
-const before = await page.$$eval('.timeline-block', (els) => els.length)
+const guideText = await page.$eval('.howto-steps', (el) => el.textContent || '')
+ok('howto explains edit', guideText.includes('時間を直す') && guideText.includes('ずらす'))
+
 await page.click('.primary-btn.full')
+await page.waitForSelector('.block-card')
+const timeText = await page.$eval('.block-times', (el) => el.textContent || '')
+ok('large time on card', /\d{2}:\d{2}/.test(timeText), timeText)
+
+await page.click('.block-card-main')
+await page.waitForSelector('.block-card-editor')
+ok('card editor opens', true)
+
+const before = await page.$eval(
+  '.stepper-controls strong',
+  (el) => el.textContent.trim(),
+)
+await page.click('.stepper-controls button:nth-child(3)')
 await page.waitForFunction(
-  (n) => document.querySelectorAll('.timeline-block').length > n,
+  (prev) => {
+    const el = document.querySelector('.stepper-controls strong')
+    return el && el.textContent.trim() !== prev
+  },
   {},
   before,
 )
-ok('add availability block', true)
+ok('stepper changes time', true)
 
-// Move first block via handle end resize
-const handle = await page.$('.timeline-handle.end')
-if (handle) {
-  const box = await handle.boundingBox()
-  const track = await page.$('.timeline-track')
-  const trackBox = await track.boundingBox()
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
-  await page.mouse.down()
-  await page.mouse.move(trackBox.x + trackBox.width * 0.8, box.y + box.height / 2, {
-    steps: 10,
-  })
-  await page.mouse.up()
-  ok('resize drag', true)
-} else {
-  ok('resize drag', false, 'no handle')
-}
+const handleTime = await page.$eval('.handle-time', (el) => el.textContent.trim())
+ok('bar handle shows time', /^\d{2}:\d{2}$/.test(handleTime), handleTime)
 
 await page.screenshot({
-  path: '/opt/cursor/artifacts/v2_member_editor.png',
+  path: '/opt/cursor/artifacts/v3_clear_times_editor.png',
   fullPage: false,
 })
 
 await page.click('.app-tabs button:nth-child(1)')
 await page.waitForSelector('.admin-board')
-await page.click('.range-tabs button:nth-child(2)')
-await page.waitForSelector('.week-grid')
-ok('week view', true)
 await page.screenshot({
-  path: '/opt/cursor/artifacts/v2_admin_week.png',
-  fullPage: false,
-})
-
-await page.click('.range-tabs button:nth-child(3)')
-await page.waitForSelector('.month-list')
-ok('month view', true)
-await page.click('.range-tabs button:nth-child(1)')
-await page.screenshot({
-  path: '/opt/cursor/artifacts/v2_admin_day.png',
+  path: '/opt/cursor/artifacts/v3_admin_after_edit.png',
   fullPage: false,
 })
 
