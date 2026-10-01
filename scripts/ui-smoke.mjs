@@ -1,18 +1,17 @@
 import puppeteer from 'puppeteer-core'
+import { mkdirSync } from 'node:fs'
+
+mkdirSync('/opt/cursor/artifacts', { recursive: true })
 
 const browser = await puppeteer.launch({
   executablePath: '/usr/local/bin/google-chrome',
   headless: true,
-  args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=390,844'],
-  defaultViewport: { width: 390, height: 844, isMobile: true, hasTouch: true },
+  args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=1280,900'],
+  defaultViewport: { width: 1280, height: 900 },
 })
 
 const page = await browser.newPage()
-await page.goto('http://127.0.0.1:5173/', { waitUntil: 'networkidle0' })
-
-// Grant clipboard permission
-const context = browser.defaultBrowserContext()
-await context.overridePermissions('http://127.0.0.1:5173', ['clipboard-read', 'clipboard-write'])
+await page.goto('http://localhost:5173/', { waitUntil: 'networkidle0' })
 
 const results = []
 
@@ -21,80 +20,116 @@ function ok(name, pass, detail = '') {
   console.log(`${pass ? 'PASS' : 'FAIL'}: ${name}${detail ? ' — ' + detail : ''}`)
 }
 
-// Empty state
-const empty = await page.$eval('.empty-state', (el) => el.textContent)
-ok('empty state visible', empty.includes('きれいに分けてくれるよ'))
+const brand = await page.$eval('.brand', (el) => el.textContent.trim())
+ok('brand visible', brand === 'いま振る', brand)
 
-// Type text
-const sample = 'これはテスト文章です長い文章を6文字ずつに分けてみようね'
-await page.click('.text-input')
-await page.type('.text-input', sample)
+const tagline = await page.$eval('.tagline', (el) => el.textContent.trim())
+ok('tagline', tagline.includes('誰に仕事を振る'), tagline)
+
+const timeText = await page.$eval('.status-time time', (el) => el.textContent.trim())
+ok('current time shown', /^\d{2}:\d{2}$/.test(timeText), timeText)
+
+const counts = await page.$$eval('.status-counts .count strong', (els) =>
+  els.map((el) => el.textContent.trim()),
+)
+ok('three status counts', counts.length === 3, counts.join(','))
+
+const memberNames = await page.$$eval('.member-name', (els) =>
+  els.map((el) => el.textContent.trim()),
+)
+ok('demo members loaded', memberNames.length >= 5, String(memberNames.length))
+
+const labels = await page.$$eval('.member-ready', (els) =>
+  els.map((el) => el.textContent.trim()),
+)
+ok(
+  'ready labels present',
+  labels.some((l) => l.includes('今すぐOK') || l.includes('対応可能')),
+  labels.slice(0, 3).join(' | '),
+)
+
+const firstStatus = await page.$eval('.member-row', (el) =>
+  [...el.classList].find((c) => c.startsWith('status-')),
+)
+ok('top member is immediate or soon', firstStatus === 'status-immediate' || firstStatus === 'status-soon', firstStatus)
+
+await page.screenshot({
+  path: '/opt/cursor/artifacts/shift_board_overview.png',
+  fullPage: false,
+})
+
+// Expand first member and interact with schedule bar
+await page.click('.member-row:first-child .member-main')
+await page.waitForSelector('.member-row.open .schedule-track')
+ok('schedule editor opens', true)
+
+const blockBefore = await page.$eval(
+  '.member-row.open .schedule-block',
+  (el) => el.getAttribute('aria-label'),
+)
+
+await page.click('.member-row.open .schedule-block')
 await page.waitForFunction(
-  (n) => document.querySelector('.char-live')?.textContent?.includes(String(n)),
+  (prev) => {
+    const el = document.querySelector('.member-row.open .schedule-block')
+    return el && el.getAttribute('aria-label') !== prev
+  },
   {},
-  28,
+  blockBefore,
 )
-const countText = await page.$eval('.char-live', (el) => el.textContent)
-ok('char counter', countText.includes('28'), countText)
+const blockAfter = await page.$eval(
+  '.member-row.open .schedule-block',
+  (el) => el.getAttribute('aria-label'),
+)
+ok('tap cycles status', blockBefore !== blockAfter, `${blockBefore} → ${blockAfter}`)
 
-// Click 6文字 preset
-await page.click('button.btn-preset:nth-of-type(1)')
-await page.waitForFunction(() => {
-  const active = document.querySelector('.btn-preset.is-active')
-  return active && active.textContent.includes('6文字')
+// Drag end handle to resize
+const handle = await page.$('.member-row.open .schedule-handle.end')
+const box = await handle.boundingBox()
+const track = await page.$('.member-row.open .schedule-track')
+const trackBox = await track.boundingBox()
+await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+await page.mouse.down()
+await page.mouse.move(trackBox.x + trackBox.width * 0.85, box.y + box.height / 2, {
+  steps: 12,
 })
-ok('preset 6 active', true)
-
-const lineCount = await page.$$eval('.result-item', (els) => els.length)
-ok('split into lines (6 chars)', lineCount === Math.ceil(28 / 6), `lines=${lineCount}`)
-
-const firstLine = await page.$eval('.result-item .result-text', (el) => el.textContent)
-ok('first line is 6 chars', [...firstLine].length === 6, firstLine)
-
-// Copy one line
-await page.click('.result-item .btn-copy')
-await page.waitForFunction(() =>
-  document.querySelector('.result-item .btn-copy')?.textContent?.includes('コピーしたよ'),
+await page.mouse.up()
+await new Promise((r) => setTimeout(r, 200))
+const blockResized = await page.$eval(
+  '.member-row.open .schedule-block',
+  (el) => el.getAttribute('aria-label'),
 )
-ok('copy feedback', true)
-const clip = await page.evaluate(() => navigator.clipboard.readText())
-ok('clipboard has line', clip === firstLine, clip)
+ok('drag resizes block', blockResized !== blockAfter, blockResized)
 
-await page.waitForFunction(
-  () => document.querySelector('.result-item .btn-copy')?.textContent?.includes('📋 コピー'),
-  { timeout: 3000 },
-)
-ok('copy button resets', true)
-
-// Copy all
-await page.click('.btn-copy-all')
-await page.waitForFunction(() =>
-  document.querySelector('.btn-copy-all')?.textContent?.includes('ぜんぶコピーしたよ'),
-)
-ok('copy-all feedback', true)
-
-// Clear
-await page.click('.btn-clear')
-await page.waitForSelector('.empty-state')
-const cleared = await page.$eval('.text-input', (el) => el.value)
-ok('clear works', cleared === '')
-
-// Stepper
-await page.type('.text-input', 'あいうえおかきくけこ')
-await page.click('.btn-stepper[aria-label="1文字増やす"]')
-await page.waitForFunction(() => {
-  const v = document.querySelector('.number-input')?.value
-  return v === '7'
+await page.screenshot({
+  path: '/opt/cursor/artifacts/shift_board_editor_open.png',
+  fullPage: false,
 })
-ok('stepper +', true)
 
-await page.click('button.btn-preset:nth-of-type(3)') // 10文字
+// Add member
+await page.type('#member-name', '検証太郎')
+await page.click('.add-form .primary-btn')
 await page.waitForFunction(() =>
-  document.querySelector('.btn-preset.is-active')?.textContent?.includes('10文字'),
+  [...document.querySelectorAll('.member-name')].some((el) =>
+    el.textContent.includes('検証太郎'),
+  ),
 )
-ok('preset 10', true)
+ok('add member', true)
 
-await page.screenshot({ path: '/opt/cursor/artifacts/mobile_interaction_verified.png', fullPage: true })
+await page.screenshot({
+  path: '/opt/cursor/artifacts/shift_board_member_added.png',
+  fullPage: true,
+})
+
+// Mobile viewport
+await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true })
+await page.reload({ waitUntil: 'networkidle0' })
+const mobileBrand = await page.$eval('.brand', (el) => el.textContent.trim())
+ok('mobile brand', mobileBrand === 'いま振る')
+await page.screenshot({
+  path: '/opt/cursor/artifacts/shift_board_mobile.png',
+  fullPage: false,
+})
 
 const failed = results.filter((r) => !r.pass)
 console.log(`\n${results.length - failed.length}/${results.length} passed`)

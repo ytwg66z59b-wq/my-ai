@@ -142,9 +142,18 @@ export function getAvailability(
   return {
     status,
     minutesUntilReady: wait,
-    label: `あと${wait}分で対応可能`,
+    label: formatReadyLabel(wait),
     sortKey: STATUS_ORDER[status] * 10_000 + wait,
   }
+}
+
+function formatReadyLabel(wait: number): string {
+  if (wait <= 0) return '今すぐOK'
+  if (wait < 60) return `あと${wait}分で対応可能`
+  const hours = Math.floor(wait / 60)
+  const mins = wait % 60
+  if (mins === 0) return `あと${hours}時間で対応可能`
+  return `あと${hours}時間${mins}分で対応可能`
 }
 
 export function sortMembersByAvailability(

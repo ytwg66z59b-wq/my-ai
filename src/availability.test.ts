@@ -79,7 +79,7 @@ describe('getAvailability', () => {
     const view = getAvailability(m, now)
     assert.equal(view.status, 'unavailable')
     assert.equal(view.minutesUntilReady, 60)
-    assert.equal(view.label, 'あと60分で対応可能')
+    assert.equal(view.label, 'あと1時間で対応可能')
   })
 
   it('marks unavailable when no remaining blocks', () => {
