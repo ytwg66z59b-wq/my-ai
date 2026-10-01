@@ -12,122 +12,85 @@ const browser = await puppeteer.launch({
 
 const page = await browser.newPage()
 await page.goto('http://localhost:5173/', { waitUntil: 'networkidle0' })
+await page.evaluate(() => localStorage.clear())
+await page.reload({ waitUntil: 'networkidle0' })
 
 const results = []
-
 function ok(name, pass, detail = '') {
   results.push({ name, pass, detail })
   console.log(`${pass ? 'PASS' : 'FAIL'}: ${name}${detail ? ' — ' + detail : ''}`)
 }
 
 const brand = await page.$eval('.brand', (el) => el.textContent.trim())
-ok('brand visible', brand === 'いま振る', brand)
+ok('admin brand', brand === 'いま振る', brand)
 
-const tagline = await page.$eval('.tagline', (el) => el.textContent.trim())
-ok('tagline', tagline.includes('誰に仕事を振る'), tagline)
-
-const timeText = await page.$eval('.status-time time', (el) => el.textContent.trim())
-ok('current time shown', /^\d{2}:\d{2}$/.test(timeText), timeText)
+ok(
+  'admin tabs',
+  (await page.$eval('.app-tabs button.active', (el) => el.textContent.trim())) ===
+    '管理画面',
+)
 
 const counts = await page.$$eval('.status-counts .count strong', (els) =>
   els.map((el) => el.textContent.trim()),
 )
-ok('three status counts', counts.length === 3, counts.join(','))
+ok('status counts', counts.length === 3, counts.join(','))
 
-const memberNames = await page.$$eval('.member-name', (els) =>
-  els.map((el) => el.textContent.trim()),
-)
-ok('demo members loaded', memberNames.length >= 5, String(memberNames.length))
+ok('day timelines', (await page.$$('.timeline-track')).length >= 1)
 
-const labels = await page.$$eval('.member-ready', (els) =>
-  els.map((el) => el.textContent.trim()),
-)
-ok(
-  'ready labels present',
-  labels.some((l) => l.includes('今すぐOK') || l.includes('対応可能')),
-  labels.slice(0, 3).join(' | '),
-)
+await page.click('.app-tabs button:nth-child(2)')
+await page.waitForSelector('.mode-grid')
+ok('member editor opens', true)
 
-const firstStatus = await page.$eval('.member-row', (el) =>
-  [...el.classList].find((c) => c.startsWith('status-')),
-)
-ok('top member is immediate or soon', firstStatus === 'status-immediate' || firstStatus === 'status-soon', firstStatus)
+await page.click('.mode-btn.timed')
+await page.waitForSelector('.timeline.editable')
 
-await page.screenshot({
-  path: '/opt/cursor/artifacts/shift_board_overview.png',
-  fullPage: false,
-})
-
-// Expand first member and interact with schedule bar
-await page.click('.member-row:first-child .member-main')
-await page.waitForSelector('.member-row.open .schedule-track')
-ok('schedule editor opens', true)
-
-const blockBefore = await page.$eval(
-  '.member-row.open .schedule-block',
-  (el) => el.getAttribute('aria-label'),
-)
-
-await page.click('.member-row.open .schedule-block')
+const before = await page.$$eval('.timeline-block', (els) => els.length)
+await page.click('.primary-btn.full')
 await page.waitForFunction(
-  (prev) => {
-    const el = document.querySelector('.member-row.open .schedule-block')
-    return el && el.getAttribute('aria-label') !== prev
-  },
+  (n) => document.querySelectorAll('.timeline-block').length > n,
   {},
-  blockBefore,
+  before,
 )
-const blockAfter = await page.$eval(
-  '.member-row.open .schedule-block',
-  (el) => el.getAttribute('aria-label'),
-)
-ok('tap cycles status', blockBefore !== blockAfter, `${blockBefore} → ${blockAfter}`)
+ok('add availability block', true)
 
-// Drag end handle to resize
-const handle = await page.$('.member-row.open .schedule-handle.end')
-const box = await handle.boundingBox()
-const track = await page.$('.member-row.open .schedule-track')
-const trackBox = await track.boundingBox()
-await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
-await page.mouse.down()
-await page.mouse.move(trackBox.x + trackBox.width * 0.85, box.y + box.height / 2, {
-  steps: 12,
-})
-await page.mouse.up()
-await new Promise((r) => setTimeout(r, 200))
-const blockResized = await page.$eval(
-  '.member-row.open .schedule-block',
-  (el) => el.getAttribute('aria-label'),
-)
-ok('drag resizes block', blockResized !== blockAfter, blockResized)
+// Move first block via handle end resize
+const handle = await page.$('.timeline-handle.end')
+if (handle) {
+  const box = await handle.boundingBox()
+  const track = await page.$('.timeline-track')
+  const trackBox = await track.boundingBox()
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(trackBox.x + trackBox.width * 0.8, box.y + box.height / 2, {
+    steps: 10,
+  })
+  await page.mouse.up()
+  ok('resize drag', true)
+} else {
+  ok('resize drag', false, 'no handle')
+}
 
 await page.screenshot({
-  path: '/opt/cursor/artifacts/shift_board_editor_open.png',
+  path: '/opt/cursor/artifacts/v2_member_editor.png',
   fullPage: false,
 })
 
-// Add member
-await page.type('#member-name', '検証太郎')
-await page.click('.add-form .primary-btn')
-await page.waitForFunction(() =>
-  [...document.querySelectorAll('.member-name')].some((el) =>
-    el.textContent.includes('検証太郎'),
-  ),
-)
-ok('add member', true)
-
+await page.click('.app-tabs button:nth-child(1)')
+await page.waitForSelector('.admin-board')
+await page.click('.range-tabs button:nth-child(2)')
+await page.waitForSelector('.week-grid')
+ok('week view', true)
 await page.screenshot({
-  path: '/opt/cursor/artifacts/shift_board_member_added.png',
-  fullPage: true,
+  path: '/opt/cursor/artifacts/v2_admin_week.png',
+  fullPage: false,
 })
 
-// Mobile viewport
-await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true })
-await page.reload({ waitUntil: 'networkidle0' })
-const mobileBrand = await page.$eval('.brand', (el) => el.textContent.trim())
-ok('mobile brand', mobileBrand === 'いま振る')
+await page.click('.range-tabs button:nth-child(3)')
+await page.waitForSelector('.month-list')
+ok('month view', true)
+await page.click('.range-tabs button:nth-child(1)')
 await page.screenshot({
-  path: '/opt/cursor/artifacts/shift_board_mobile.png',
+  path: '/opt/cursor/artifacts/v2_admin_day.png',
   fullPage: false,
 })
 

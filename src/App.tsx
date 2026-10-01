@@ -1,27 +1,36 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { AdminBoard, type RangeMode } from './AdminBoard'
+import { MemberEditor } from './MemberEditor'
 import {
-  STATUS_META,
   createId,
-  formatClock,
+  emptyTemplates,
   minutesFromDate,
-  sortMembersByAvailability,
-  summarizeAvailability,
+  toDateKey,
+  type DayPlan,
   type Member,
-  type ScheduleBlock,
+  type WeekdayTemplate,
 } from './availability'
-import { ScheduleBar } from './ScheduleBar'
 import { createDemoMembers } from './seed'
 import './App.css'
 
-const STORAGE_KEY = 'ima-furu-members-v1'
+const STORAGE_KEY = 'ima-furu-board-v2'
+type Tab = 'admin' | 'member'
+
+function isMemberArray(value: unknown): value is Member[] {
+  return Array.isArray(value) && value.every((m) => m && typeof m === 'object' && 'days' in m)
+}
 
 function loadMembers(): Member[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return createDemoMembers()
-    const parsed = JSON.parse(raw) as Member[]
-    if (!Array.isArray(parsed) || parsed.length === 0) return createDemoMembers()
-    return parsed
+    const parsed = JSON.parse(raw) as unknown
+    if (!isMemberArray(parsed) || parsed.length === 0) return createDemoMembers()
+    return parsed.map((m) => ({
+      ...m,
+      templates: m.templates?.length === 7 ? m.templates : emptyTemplates(),
+      days: m.days ?? {},
+    }))
   } catch {
     return createDemoMembers()
   }
@@ -30,7 +39,13 @@ function loadMembers(): Member[] {
 function App() {
   const [now, setNow] = useState(() => new Date())
   const [members, setMembers] = useState<Member[]>(() => loadMembers())
-  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [tab, setTab] = useState<Tab>('admin')
+  const [dateKey, setDateKey] = useState(() => toDateKey(new Date()))
+  const [range, setRange] = useState<RangeMode>('day')
+  const [activeMemberId, setActiveMemberId] = useState(() => {
+    const initial = loadMembers()
+    return initial[0]?.id ?? ''
+  })
   const [draftName, setDraftName] = useState('')
 
   useEffect(() => {
@@ -42,19 +57,34 @@ function App() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(members))
   }, [members])
 
-  const nowMin = minutesFromDate(now)
-  const ranked = useMemo(
-    () => sortMembersByAvailability(members, nowMin),
-    [members, nowMin],
-  )
-  const summary = useMemo(
-    () => summarizeAvailability(members, nowMin),
-    [members, nowMin],
-  )
+  const resolvedMemberId = members.some((m) => m.id === activeMemberId)
+    ? activeMemberId
+    : (members[0]?.id ?? '')
 
-  function updateBlocks(memberId: string, blocks: ScheduleBlock[]) {
+  const nowMin = minutesFromDate(now)
+
+  function updateDay(memberId: string, plan: DayPlan) {
     setMembers((prev) =>
-      prev.map((m) => (m.id === memberId ? { ...m, blocks } : m)),
+      prev.map((m) =>
+        m.id === memberId
+          ? { ...m, days: { ...m.days, [plan.dateKey]: plan } }
+          : m,
+      ),
+    )
+  }
+
+  function saveTemplate(
+    memberId: string,
+    weekday: number,
+    template: WeekdayTemplate,
+  ) {
+    setMembers((prev) =>
+      prev.map((m) => {
+        if (m.id !== memberId) return m
+        const templates = [...m.templates]
+        templates[weekday] = template
+        return { ...m, templates }
+      }),
     )
   }
 
@@ -67,136 +97,64 @@ function App() {
       {
         id,
         name,
-        blocks: [
-          {
-            id: createId('block'),
-            startMin: Math.max(8 * 60, nowMin),
-            endMin: Math.min(24 * 60, Math.max(8 * 60, nowMin) + 60),
-            status: 'immediate',
-          },
-        ],
+        days: {},
+        templates: emptyTemplates(),
       },
     ])
+    setActiveMemberId(id)
     setDraftName('')
-    setExpandedId(id)
-  }
-
-  function removeMember(id: string) {
-    setMembers((prev) => prev.filter((m) => m.id !== id))
-    if (expandedId === id) setExpandedId(null)
+    setTab('member')
   }
 
   function resetDemo() {
     const next = createDemoMembers(new Date())
     setMembers(next)
-    setExpandedId(null)
+    setActiveMemberId(next[0]?.id ?? '')
+    localStorage.removeItem(STORAGE_KEY)
   }
 
   return (
     <div className="app">
       <div className="atmosphere" aria-hidden />
 
-      <header className="hero">
-        <p className="brand">いま振る</p>
-        <h1 className="tagline">今、誰に仕事を振る？</h1>
-        <p className="lede">
-          稼働を一目で見て、振り先を直感で決めるシフトボード。
-        </p>
-      </header>
+      <nav className="app-tabs" aria-label="画面切替">
+        <button
+          type="button"
+          className={tab === 'admin' ? 'active' : ''}
+          onClick={() => setTab('admin')}
+        >
+          管理画面
+        </button>
+        <button
+          type="button"
+          className={tab === 'member' ? 'active' : ''}
+          onClick={() => setTab('member')}
+        >
+          シフト入力
+        </button>
+      </nav>
 
-      <section className="status-board" aria-live="polite">
-        <div className="status-time">
-          <span className="status-time-label">現在</span>
-          <time dateTime={now.toISOString()}>{formatClock(nowMin)}</time>
-        </div>
-        <ul className="status-counts">
-          <li className="count immediate">
-            <span>{STATUS_META.immediate.emoji}</span>
-            <span>
-              {STATUS_META.immediate.long}
-              <strong>{summary.immediate}人</strong>
-            </span>
-          </li>
-          <li className="count soon">
-            <span>{STATUS_META.soon.emoji}</span>
-            <span>
-              {STATUS_META.soon.long}
-              <strong>{summary.soon}人</strong>
-            </span>
-          </li>
-          <li className="count unavailable">
-            <span>{STATUS_META.unavailable.emoji}</span>
-            <span>
-              {STATUS_META.unavailable.long}
-              <strong>{summary.unavailable}人</strong>
-            </span>
-          </li>
-        </ul>
-      </section>
-
-      <section className="dispatch">
-        <div className="section-head">
-          <h2>今、誰に振る？</h2>
-          <p>対応できる人から上に並びます</p>
-        </div>
-
-        <ol className="member-list">
-          {ranked.map((member, index) => {
-            const meta = STATUS_META[member.availability.status]
-            const open = expandedId === member.id
-            return (
-              <li
-                key={member.id}
-                className={`member-row status-${member.availability.status} ${open ? 'open' : ''}`}
-              >
-                <button
-                  type="button"
-                  className="member-main"
-                  onClick={() =>
-                    setExpandedId((prev) =>
-                      prev === member.id ? null : member.id,
-                    )
-                  }
-                  aria-expanded={open}
-                >
-                  <span className="rank" aria-hidden>
-                    {index + 1}
-                  </span>
-                  <span className="member-status" aria-hidden>
-                    {meta.emoji}
-                  </span>
-                  <span className="member-body">
-                    <span className="member-name">{member.name}</span>
-                    <span className="member-ready">
-                      {member.availability.label}
-                    </span>
-                  </span>
-                  <span className="member-badge">{meta.short}</span>
-                </button>
-
-                {open && (
-                  <div className="member-editor">
-                    <ScheduleBar
-                      blocks={member.blocks}
-                      nowMin={nowMin}
-                      onChange={(blocks) => updateBlocks(member.id, blocks)}
-                    />
-                    <div className="member-actions">
-                      <button
-                        type="button"
-                        className="ghost-btn danger"
-                        onClick={() => removeMember(member.id)}
-                      >
-                        メンバーを削除
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </li>
-            )
-          })}
-        </ol>
-      </section>
+      {tab === 'admin' ? (
+        <AdminBoard
+          members={members}
+          dateKey={dateKey}
+          nowMin={nowMin}
+          range={range}
+          onChangeDate={setDateKey}
+          onChangeRange={setRange}
+        />
+      ) : (
+        <MemberEditor
+          members={members}
+          activeMemberId={resolvedMemberId}
+          dateKey={dateKey}
+          nowMin={nowMin}
+          onSelectMember={setActiveMemberId}
+          onChangeDate={setDateKey}
+          onUpdateDay={updateDay}
+          onSaveTemplate={saveTemplate}
+        />
+      )}
 
       <section className="add-member">
         <h2>メンバー追加</h2>
@@ -227,7 +185,7 @@ function App() {
       </section>
 
       <footer className="footer">
-        <p>シフト管理ではなく、振り先判断のためのボード</p>
+        <p>シフト記録ではなく、振り先判断のためのボード</p>
       </footer>
     </div>
   )
