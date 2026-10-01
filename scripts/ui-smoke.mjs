@@ -59,8 +59,11 @@ await page.waitForFunction(
 )
 ok('stepper changes time', true)
 
-const handleTime = await page.$eval('.handle-time', (el) => el.textContent.trim())
-ok('bar handle shows time', /^\d{2}:\d{2}$/.test(handleTime), handleTime)
+ok(
+  'bar has no clutter time labels',
+  (await page.$$('.handle-time')).length === 0 &&
+    (await page.$$('.timeline-block-label strong')).length === 0,
+)
 
 await page.screenshot({
   path: '/opt/cursor/artifacts/v3_clear_times_editor.png',

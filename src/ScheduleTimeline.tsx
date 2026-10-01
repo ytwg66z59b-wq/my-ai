@@ -264,8 +264,6 @@ export function ScheduleTimeline({
             const width = Math.max(right - left, compact ? 0.8 : 2)
             const meta = STATUS_META[block.status]
             const selected = selectedId === block.id
-            const durationMin = block.endMin - block.startMin
-            const showInlineTime = !compact && width >= 10
             return (
               <div
                 key={block.id}
@@ -300,10 +298,8 @@ export function ScheduleTimeline({
                   <span
                     className="timeline-handle start"
                     onPointerDown={(e) => startDrag(e, block.id, 'start')}
-                    aria-label="開始時間を変更"
-                  >
-                    <span className="handle-time">{formatClock(block.startMin)}</span>
-                  </span>
+                    aria-label={`開始時間を変更 ${formatClock(block.startMin)}`}
+                  />
                 )}
                 <span
                   className="timeline-block-body"
@@ -312,31 +308,18 @@ export function ScheduleTimeline({
                     startDrag(e, block.id, 'move')
                   }}
                 >
-                  {showInlineTime ? (
-                    <span className="timeline-block-label">
-                      <strong>
-                        {formatClock(block.startMin)}–{formatClock(block.endMin)}
-                      </strong>
-                      <em>
-                        {meta.emoji} {Math.round(durationMin / 60 * 10) / 10}時間
-                      </em>
+                  {!compact && (
+                    <span className="timeline-block-label short" aria-hidden>
+                      {meta.emoji}
                     </span>
-                  ) : (
-                    !compact && (
-                      <span className="timeline-block-label short">
-                        {meta.emoji}
-                      </span>
-                    )
                   )}
                 </span>
                 {editable && (
                   <span
                     className="timeline-handle end"
                     onPointerDown={(e) => startDrag(e, block.id, 'end')}
-                    aria-label="終了時間を変更"
-                  >
-                    <span className="handle-time">{formatClock(block.endMin)}</span>
-                  </span>
+                    aria-label={`終了時間を変更 ${formatClock(block.endMin)}`}
+                  />
                 )}
               </div>
             )
