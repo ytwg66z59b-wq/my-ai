@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   DAY_MINUTES,
   SLOT_MINUTES,
@@ -10,7 +10,6 @@ import {
   createId,
   effectiveBlocks,
   formatClock,
-  formatDateLabel,
   resolveDayPlan,
   type DayMode,
   type DayPlan,
@@ -19,6 +18,7 @@ import {
   type ScheduleBlock,
   type WeekdayTemplate,
 } from './availability'
+import { DateCalendar } from './DateCalendar'
 import { ScheduleTimeline } from './ScheduleTimeline'
 
 type Clipboard =
@@ -69,7 +69,6 @@ export function MemberEditor({
   const [savedFlash, setSavedFlash] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [guideOpen, setGuideOpen] = useState(true)
-  const touchStartX = useRef<number | null>(null)
 
   function flashSaved() {
     setSavedFlash(true)
@@ -190,45 +189,14 @@ export function MemberEditor({
     <section className="member-editor-screen">
       <div className="section-head">
         <h2>{member.name} の空き時間</h2>
-        <p>自分の予定だけ編集できます。変更は自動保存されます。</p>
+        <p>カレンダーで日付を選んで、自分の予定だけ編集できます。</p>
       </div>
 
-      <div
-        className="date-swiper"
-        onTouchStart={(e) => {
-          touchStartX.current = e.changedTouches[0]?.clientX ?? null
-        }}
-        onTouchEnd={(e) => {
-          const start = touchStartX.current
-          const end = e.changedTouches[0]?.clientX
-          touchStartX.current = null
-          if (start == null || end == null) return
-          const delta = end - start
-          if (Math.abs(delta) < 48) return
-          onChangeDate(addDays(dateKey, delta < 0 ? 1 : -1))
-        }}
-      >
-        <button
-          type="button"
-          className="ghost-btn"
-          onClick={() => onChangeDate(addDays(dateKey, -1))}
-          aria-label="前日"
-        >
-          ‹
-        </button>
-        <div className="date-label">
-          <strong>{formatDateLabel(dateKey)}</strong>
-          <span>スワイプで日付変更</span>
-        </div>
-        <button
-          type="button"
-          className="ghost-btn"
-          onClick={() => onChangeDate(addDays(dateKey, 1))}
-          aria-label="翌日"
-        >
-          ›
-        </button>
-      </div>
+      <DateCalendar
+        dateKey={dateKey}
+        member={member}
+        onChangeDate={onChangeDate}
+      />
 
       <div className="mode-grid" role="group" aria-label="今日の対応可能状況">
         <button

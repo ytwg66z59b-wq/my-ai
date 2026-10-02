@@ -459,31 +459,164 @@ button, input, select { font: inherit; }
   color: var(--ink);
 }
 
-.date-swiper {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 0.5rem;
-  align-items: center;
-  margin-bottom: 0.9rem;
-  padding: 0.55rem;
+.date-calendar {
+  margin-bottom: 1rem;
+  padding: 0.9rem;
   border: 1px solid var(--line);
-  border-radius: 16px;
-  background: var(--panel);
+  border-radius: 18px;
+  background: var(--panel-strong);
 }
 
-.date-label {
-  display: grid;
-  justify-items: center;
-  gap: 0.15rem;
-  text-align: center;
+.date-calendar-selected {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.65rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
 }
 
-.date-label strong {
+.date-calendar-caption {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  margin-bottom: 0.15rem;
+}
+
+.date-calendar-selected strong {
   font-family: var(--font-display);
-  font-size: 1.15rem;
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
 }
 
-.date-label span { color: var(--ink-soft); font-size: 0.75rem; }
+.date-calendar-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.date-calendar-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.55rem;
+}
+
+.date-calendar-nav strong {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+}
+
+.date-calendar-weekdays,
+.date-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.3rem;
+}
+
+.date-calendar-weekdays {
+  margin-bottom: 0.3rem;
+}
+
+.date-calendar-weekdays span {
+  text-align: center;
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  font-weight: 650;
+  padding: 0.2rem 0;
+}
+
+.date-calendar-weekdays .sun,
+.cal-cell.sun .cal-day { color: #c23b45; }
+
+.date-calendar-weekdays .sat,
+.cal-cell.sat .cal-day { color: #1f6fb2; }
+
+.cal-cell {
+  aspect-ratio: 1;
+  min-height: 2.5rem;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: #f4faf7;
+  color: var(--ink);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  gap: 0.1rem;
+  padding: 0.2rem;
+  position: relative;
+}
+
+.cal-cell.empty {
+  background: transparent;
+  cursor: default;
+}
+
+.cal-day {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.cal-dot {
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.cal-cell.mark-all-day .cal-dot { background: var(--go); }
+.cal-cell.mark-timed .cal-dot { background: var(--accent); }
+.cal-cell.mark-off .cal-dot { background: #8a9590; }
+
+.cal-cell.today {
+  border-color: rgba(14, 107, 92, 0.35);
+}
+
+.cal-cell.selected {
+  background: var(--accent);
+  color: #f4fffb;
+  box-shadow: 0 8px 18px rgba(14, 107, 92, 0.22);
+}
+
+.cal-cell.selected .cal-day,
+.cal-cell.selected.sun .cal-day,
+.cal-cell.selected.sat .cal-day {
+  color: #f4fffb;
+}
+
+.cal-cell.selected .cal-dot {
+  background: #fff;
+}
+
+.date-calendar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
+  margin: 0.7rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+}
+
+.date-calendar-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.date-calendar-legend .dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.date-calendar-legend .dot.timed { background: var(--accent); }
+.date-calendar-legend .dot.all { background: var(--go); }
+.date-calendar-legend .dot.off { background: #8a9590; }
 
 .mode-grid {
   display: grid;
