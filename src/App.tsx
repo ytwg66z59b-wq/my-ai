@@ -1,286 +1,269 @@
-import { useEffect, useId, useRef, useState } from 'react'
-import { countChars, splitText } from './splitText'
+import { useEffect, useState } from 'react'
+import { AdminBoard, type RangeMode } from './AdminBoard'
+import { MemberEditor } from './MemberEditor'
+import {
+  createId,
+  emptyTemplates,
+  minutesFromDate,
+  toDateKey,
+  type DayPlan,
+  type Member,
+  type WeekdayTemplate,
+} from './availability'
 import './App.css'
 
-const PRESETS = [6, 8, 10, 12] as const
-const MIN_CHARS = 1
-const MAX_CHARS = 100
-const COPY_RESET_MS = 2000
+const STORAGE_KEY = 'ima-furu-board-v3'
+const LEGACY_KEYS = ['ima-furu-board-v2', 'ima-furu-members-v1']
+
+type Tab = 'admin' | 'member'
+type Store = {
+  members: Member[]
+  currentUserId: string | null
+}
+
+function isMemberArray(value: unknown): value is Member[] {
+  return (
+    Array.isArray(value) &&
+    value.every((m) => m && typeof m === 'object' && 'days' in m && 'name' in m)
+  )
+}
+
+function normalizeMember(m: Member): Member {
+  return {
+    ...m,
+    templates: m.templates?.length === 7 ? m.templates : emptyTemplates(),
+    days: m.days ?? {},
+  }
+}
+
+function loadStore(): Store {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<Store>
+      const members = isMemberArray(parsed.members)
+        ? parsed.members.map(normalizeMember)
+        : []
+      const currentUserId =
+        typeof parsed.currentUserId === 'string' &&
+        members.some((m) => m.id === parsed.currentUserId)
+          ? parsed.currentUserId
+          : null
+      return { members, currentUserId }
+    }
+  } catch {
+    // ignore
+  }
+
+  // Drop legacy demo data so users start clean
+  for (const key of LEGACY_KEYS) {
+    localStorage.removeItem(key)
+  }
+  return { members: [], currentUserId: null }
+}
 
 function App() {
-  const [text, setText] = useState('')
-  const [charsPerLine, setCharsPerLine] = useState(8)
-  const [copiedIndex, setCopiedIndex] = useState<number | null>(null)
-  const [copiedAll, setCopiedAll] = useState(false)
-  const [burstKey, setBurstKey] = useState(0)
-  const copyTimer = useRef<number | null>(null)
-  const copyAllTimer = useRef<number | null>(null)
-  const textareaId = useId()
-  const numberId = useId()
+  const [now, setNow] = useState(() => new Date())
+  const [store, setStore] = useState<Store>(() => loadStore())
+  const [tab, setTab] = useState<Tab>('member')
+  const [dateKey, setDateKey] = useState(() => toDateKey(new Date()))
+  const [range, setRange] = useState<RangeMode>('day')
+  const [draftName, setDraftName] = useState('')
+  const [nameError, setNameError] = useState('')
 
-  const charCount = countChars(text)
-  const lines = splitText(text, charsPerLine)
+  const { members, currentUserId } = store
+  const me = members.find((m) => m.id === currentUserId) ?? null
 
   useEffect(() => {
-    return () => {
-      if (copyTimer.current) window.clearTimeout(copyTimer.current)
-      if (copyAllTimer.current) window.clearTimeout(copyAllTimer.current)
-    }
+    const id = window.setInterval(() => setNow(new Date()), 15_000)
+    return () => window.clearInterval(id)
   }, [])
 
-  function clampChars(value: number) {
-    if (Number.isNaN(value)) return charsPerLine
-    return Math.min(MAX_CHARS, Math.max(MIN_CHARS, value))
-  }
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(store))
+  }, [store])
 
-  function handleCharsChange(raw: string) {
-    const digits = raw.replace(/[^\d]/g, '')
-    if (digits === '') {
-      setCharsPerLine(MIN_CHARS)
+  const nowMin = minutesFromDate(now)
+
+  function createAccount(nameRaw: string) {
+    const name = nameRaw.trim()
+    if (!name) {
+      setNameError('名前を入力してください')
       return
     }
-    setCharsPerLine(clampChars(Number(digits)))
-  }
-
-  async function copyText(value: string) {
-    try {
-      await navigator.clipboard.writeText(value)
-      return true
-    } catch {
-      // Fallback for environments without clipboard permission
-      const ta = document.createElement('textarea')
-      ta.value = value
-      ta.setAttribute('readonly', '')
-      ta.style.position = 'fixed'
-      ta.style.left = '-9999px'
-      document.body.appendChild(ta)
-      ta.select()
-      const ok = document.execCommand('copy')
-      document.body.removeChild(ta)
-      return ok
+    if (members.some((m) => m.name === name)) {
+      setNameError('同じ名前のアカウントが既にあります。下から選んで入ってください')
+      return
     }
+    const id = createId('member')
+    const member: Member = {
+      id,
+      name,
+      days: {},
+      templates: emptyTemplates(),
+    }
+    setStore({
+      members: [...members, member],
+      currentUserId: id,
+    })
+    setDraftName('')
+    setNameError('')
+    setTab('member')
   }
 
-  async function handleCopyLine(line: string, index: number) {
-    const ok = await copyText(line)
-    if (!ok) return
-    setCopiedIndex(index)
-    setBurstKey((k) => k + 1)
-    if (copyTimer.current) window.clearTimeout(copyTimer.current)
-    copyTimer.current = window.setTimeout(() => setCopiedIndex(null), COPY_RESET_MS)
+  function loginAs(id: string) {
+    if (!members.some((m) => m.id === id)) return
+    setStore((prev) => ({ ...prev, currentUserId: id }))
+    setTab('member')
   }
 
-  async function handleCopyAll() {
-    if (lines.length === 0) return
-    const ok = await copyText(lines.join('\n'))
-    if (!ok) return
-    setCopiedAll(true)
-    setBurstKey((k) => k + 1)
-    if (copyAllTimer.current) window.clearTimeout(copyAllTimer.current)
-    copyAllTimer.current = window.setTimeout(() => setCopiedAll(false), COPY_RESET_MS)
+  function logout() {
+    setStore((prev) => ({ ...prev, currentUserId: null }))
+    setDraftName('')
+    setNameError('')
   }
 
-  function handleClear() {
-    setText('')
-    setCopiedIndex(null)
-    setCopiedAll(false)
+  function updateDay(memberId: string, plan: DayPlan) {
+    if (!currentUserId || memberId !== currentUserId) return
+    setStore((prev) => ({
+      ...prev,
+      members: prev.members.map((m) =>
+        m.id === memberId
+          ? { ...m, days: { ...m.days, [plan.dateKey]: plan } }
+          : m,
+      ),
+    }))
   }
 
-  function bumpChars(delta: number) {
-    setCharsPerLine((prev) => clampChars(prev + delta))
+  function saveTemplate(
+    memberId: string,
+    weekday: number,
+    template: WeekdayTemplate,
+  ) {
+    if (!currentUserId || memberId !== currentUserId) return
+    setStore((prev) => ({
+      ...prev,
+      members: prev.members.map((m) => {
+        if (m.id !== memberId) return m
+        const templates = [...m.templates]
+        templates[weekday] = template
+        return { ...m, templates }
+      }),
+    }))
+  }
+
+  // Not logged in → account gate
+  if (!me) {
+    return (
+      <div className="app">
+        <div className="atmosphere" aria-hidden />
+        <section className="auth-gate">
+          <p className="brand">いま振る</p>
+          <h1 className="tagline">自分の名前で始める</h1>
+          <p className="lede">
+            名前を登録すると、自分の空き時間だけを入力できます。他人のシフトは触れません。
+          </p>
+
+          <form
+            className="auth-form"
+            onSubmit={(e) => {
+              e.preventDefault()
+              createAccount(draftName)
+            }}
+          >
+            <label htmlFor="account-name">あなたの名前</label>
+            <input
+              id="account-name"
+              value={draftName}
+              onChange={(e) => {
+                setDraftName(e.target.value)
+                setNameError('')
+              }}
+              placeholder="例: 山田"
+              autoComplete="nickname"
+              autoFocus
+            />
+            {nameError && <p className="field-error">{nameError}</p>}
+            <button type="submit" className="primary-btn full">
+              アカウントを作って始める
+            </button>
+          </form>
+
+          {members.length > 0 && (
+            <div className="existing-accounts">
+              <h2>登録済みアカウントで入る</h2>
+              <p>自分の名前だけ選んでください。他人のアカウントでは編集しないでください。</p>
+              <ul>
+                {members.map((m) => (
+                  <li key={m.id}>
+                    <button type="button" onClick={() => loginAs(m.id)}>
+                      {m.name}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
+        <footer className="footer">
+          <p>シフト記録ではなく、振り先判断のためのボード</p>
+        </footer>
+      </div>
+    )
   }
 
   return (
-    <div className="page">
-      <div className="bg-blobs" aria-hidden="true">
-        <span className="blob blob-pink" />
-        <span className="blob blob-blue" />
-        <span className="blob blob-yellow" />
+    <div className="app">
+      <div className="atmosphere" aria-hidden />
+
+      <div className="session-bar">
+        <span>
+          <strong>{me.name}</strong> として入力中
+        </span>
+        <button type="button" className="ghost-btn" onClick={logout}>
+          アカウント切替
+        </button>
       </div>
 
-      <header className="hero">
-        <div className="decor decor-star" aria-hidden="true">
-          ✦
-        </div>
-        <div className="decor decor-pencil" aria-hidden="true">
-          ✏️
-        </div>
-        <div className="decor decor-heart" aria-hidden="true">
-          ♡
-        </div>
-        <div className="decor decor-paper" aria-hidden="true">
-          📄
-        </div>
+      <nav className="app-tabs" aria-label="画面切替">
+        <button
+          type="button"
+          className={tab === 'admin' ? 'active' : ''}
+          onClick={() => setTab('admin')}
+        >
+          管理画面
+        </button>
+        <button
+          type="button"
+          className={tab === 'member' ? 'active' : ''}
+          onClick={() => setTab('member')}
+        >
+          自分のシフト
+        </button>
+      </nav>
 
-        <p className="eyebrow">かわいく分けちゃうよ</p>
-        <h1 className="title">
-          <span className="title-icon" aria-hidden="true">
-            ✂️
-          </span>
-          ぶんしょう分けメーカー
-        </h1>
-        <p className="subtitle">長い文章を、好きな文字数で分けよう！</p>
-      </header>
-
-      <main className="main">
-        <section className="card input-card" aria-labelledby="step1-heading">
-          <div className="card-head">
-            <h2 id="step1-heading" className="step-title">
-              <span className="step-badge">①</span>
-              文章を入れてね <span aria-hidden="true">✏️</span>
-            </h2>
-            <button
-              type="button"
-              className="btn btn-clear"
-              onClick={handleClear}
-              disabled={!text}
-            >
-              🗑️ クリア
-            </button>
-          </div>
-
-          <label className="sr-only" htmlFor={textareaId}>
-            分けたい文章
-          </label>
-          <textarea
-            id={textareaId}
-            className="text-input"
-            placeholder="ここに長い文章を書いてね…"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={6}
-            inputMode="text"
-            autoComplete="off"
-            spellCheck={false}
-          />
-          <p className="char-live" aria-live="polite">
-            いま <strong>{charCount}</strong> 文字 入ってるよ！
-          </p>
-        </section>
-
-        <section className="card setting-card" aria-labelledby="step2-heading">
-          <h2 id="step2-heading" className="step-title">
-            <span className="step-badge step-badge-blue">②</span>
-            1行を何文字にする？ <span aria-hidden="true">🔢</span>
-          </h2>
-
-          <div className="number-row">
-            <button
-              type="button"
-              className="btn btn-stepper"
-              onClick={() => bumpChars(-1)}
-              aria-label="1文字減らす"
-            >
-              −
-            </button>
-            <div className="number-box">
-              <label className="sr-only" htmlFor={numberId}>
-                1行あたりの文字数
-              </label>
-              <input
-                id={numberId}
-                className="number-input"
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={charsPerLine}
-                onChange={(e) => handleCharsChange(e.target.value)}
-                onBlur={() => setCharsPerLine((v) => clampChars(v))}
-              />
-              <span className="number-unit">文字</span>
-            </div>
-            <button
-              type="button"
-              className="btn btn-stepper"
-              onClick={() => bumpChars(1)}
-              aria-label="1文字増やす"
-            >
-              ＋
-            </button>
-          </div>
-
-          <div className="presets" role="group" aria-label="文字数プリセット">
-            {PRESETS.map((n) => (
-              <button
-                key={n}
-                type="button"
-                className={`btn btn-preset${charsPerLine === n ? ' is-active' : ''}`}
-                onClick={() => setCharsPerLine(n)}
-                aria-pressed={charsPerLine === n}
-              >
-                {n}文字
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section className="card result-card" aria-labelledby="step3-heading">
-          <h2 id="step3-heading" className="step-title result-heading">
-            <span className="step-badge step-badge-yellow">③</span>
-            できあがり！ <span aria-hidden="true">🎉</span>
-          </h2>
-
-          {lines.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-illus" aria-hidden="true">
-                <span>✨</span>
-                <span>📝</span>
-                <span>✨</span>
-              </div>
-              <p>
-                ここに文章を入れると、
-                <br />
-                きれいに分けてくれるよ ✨
-              </p>
-            </div>
-          ) : (
-            <>
-              <button
-                type="button"
-                className={`btn btn-copy-all${copiedAll ? ' is-success' : ''}`}
-                onClick={handleCopyAll}
-              >
-                {copiedAll ? '🎉 ぜんぶコピーしたよ！' : '📋 ぜんぶコピー！'}
-              </button>
-              <p className="result-summary" aria-live="polite">
-                全部で <strong>{lines.length}</strong> 行になったよ！
-              </p>
-              <ul className="result-list">
-                {lines.map((line, index) => {
-                  const isCopied = copiedIndex === index
-                  return (
-                    <li
-                      key={`${index}-${line}`}
-                      className="result-item"
-                      style={{ animationDelay: `${Math.min(index, 12) * 40}ms` }}
-                    >
-                      <p className="result-text">{line}</p>
-                      <button
-                        type="button"
-                        className={`btn btn-copy${isCopied ? ' is-success' : ''}`}
-                        onClick={() => handleCopyLine(line, index)}
-                      >
-                        {isCopied ? '✓ コピーしたよ！' : '📋 コピー'}
-                      </button>
-                    </li>
-                  )
-                })}
-              </ul>
-            </>
-          )}
-        </section>
-      </main>
-
-      {burstKey > 0 && (
-        <div key={burstKey} className="sparkle-burst" aria-hidden="true">
-          <span>✦</span>
-          <span>★</span>
-          <span>✦</span>
-        </div>
+      {tab === 'admin' ? (
+        <AdminBoard
+          members={members}
+          dateKey={dateKey}
+          nowMin={nowMin}
+          range={range}
+          onChangeDate={setDateKey}
+          onChangeRange={setRange}
+        />
+      ) : (
+        <MemberEditor
+          member={me}
+          dateKey={dateKey}
+          nowMin={nowMin}
+          onChangeDate={setDateKey}
+          onUpdateDay={updateDay}
+          onSaveTemplate={saveTemplate}
+        />
       )}
 
       <footer className="footer">
-        <p>文章を入れて、数字を決めたら、ポンっと分けてくれるよ</p>
+        <p>自分の空き時間だけ編集できます。他人のシフトは変更できません。</p>
       </footer>
     </div>
   )
