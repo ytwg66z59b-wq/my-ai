@@ -1,0 +1,94 @@
+.detail-screen {
+  padding: 16px 16px 28px;
+}
+
+.back-link {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--accent-deep);
+  font-family: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 0;
+  margin-bottom: 8px;
+}
+
+.detail-hero {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.detail-hero h1 {
+  margin: 8px 0 0;
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+}
+
+.detail-sub {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.detail-line {
+  margin: 10px 0 0;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.detail-dl {
+  margin: 18px 0;
+  display: grid;
+  gap: 10px;
+}
+
+.detail-dl div {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.detail-dl dt {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.detail-dl dd {
+  margin: 0;
+}
+
+.detail-screen h2 {
+  margin: 18px 0 8px;
+  font-size: 1rem;
+  font-family: var(--font-display);
+}
+
+.evo-history,
+.candidate-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.evo-history time {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.detail-select {
+  width: 100%;
+  margin-top: 20px;
+}

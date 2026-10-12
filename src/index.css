@@ -1,6 +1,51 @@
-/* Base reset lives mostly in App.css for this single-page tool. */
+:root {
+  --font-body: 'Zen Maru Gothic', 'Hiragino Maru Gothic ProN', sans-serif;
+  --font-display: 'Yomogi', 'Zen Maru Gothic', cursive;
+  --ink: #1d3340;
+  --ink-soft: #35505c;
+  --muted: #6a848e;
+  --surface: #f3faf7;
+  --line: color-mix(in srgb, #1d3340 12%, transparent);
+  --accent: #3ec6b0;
+  --accent-deep: #1f7f72;
+  color: var(--ink);
+  background: var(--surface);
+  font-family: var(--font-body);
+  line-height: 1.5;
+  font-weight: 500;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 html,
 body,
 #root {
   height: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background:
+    radial-gradient(ellipse 90% 50% at 80% -10%, rgba(255, 230, 160, 0.35), transparent 55%),
+    radial-gradient(ellipse 70% 45% at 0% 10%, rgba(140, 220, 210, 0.35), transparent 50%),
+    linear-gradient(180deg, #d7f0eb 0%, #eef7f4 40%, #f7f4ea 100%);
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+#root {
+  isolation: isolate;
 }

@@ -1,0 +1,242 @@
+.creature-sprite {
+  position: relative;
+  display: grid;
+  place-items: center;
+  --size: 88px;
+  width: var(--size);
+  height: var(--size);
+}
+
+.creature-sprite.size-sm {
+  --size: 56px;
+}
+.creature-sprite.size-md {
+  --size: 96px;
+}
+.creature-sprite.size-lg {
+  --size: 140px;
+}
+.creature-sprite.size-xl {
+  --size: 180px;
+}
+
+.sprite-glow {
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--c-accent) 80%, transparent),
+    transparent 70%
+  );
+  animation: breathe 3.2s ease-in-out infinite;
+}
+
+.sprite-body {
+  position: relative;
+  z-index: 1;
+  width: 72%;
+  height: 72%;
+}
+
+.sprite-fallback {
+  display: none;
+}
+
+/* Egg */
+.egg-shape {
+  width: 100%;
+  height: 100%;
+  border-radius: 50% 50% 48% 48% / 58% 58% 40% 40%;
+  background: linear-gradient(
+    160deg,
+    var(--c-accent) 0%,
+    var(--c-primary) 45%,
+    var(--c-secondary) 100%
+  );
+  box-shadow: inset -6px -8px 0 color-mix(in srgb, var(--c-secondary) 35%, transparent);
+  position: relative;
+  animation: egg-sway 2.8s ease-in-out infinite;
+}
+
+.egg-shine {
+  position: absolute;
+  top: 18%;
+  left: 22%;
+  width: 28%;
+  height: 22%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.egg-speckle {
+  position: absolute;
+  width: 10%;
+  height: 8%;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--c-secondary) 55%, transparent);
+}
+.egg-speckle.s1 {
+  top: 42%;
+  left: 58%;
+}
+.egg-speckle.s2 {
+  top: 58%;
+  left: 34%;
+  width: 14%;
+}
+
+/* Dragon */
+.dragon-shape {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.dragon-face {
+  position: absolute;
+  inset: 18% 12% 22%;
+  border-radius: 46% 46% 42% 42%;
+  background: linear-gradient(165deg, var(--c-accent), var(--c-primary) 50%, var(--c-secondary));
+  box-shadow: inset -5px -6px 0 color-mix(in srgb, var(--c-secondary) 30%, transparent);
+}
+
+.dragon-horn {
+  position: absolute;
+  top: 6%;
+  width: 14%;
+  height: 22%;
+  background: var(--c-secondary);
+  border-radius: 60% 60% 20% 20%;
+}
+.dragon-horn.left {
+  left: 24%;
+  transform: rotate(-18deg);
+}
+.dragon-horn.right {
+  right: 24%;
+  transform: rotate(18deg);
+}
+
+.eye {
+  position: absolute;
+  top: 38%;
+  width: 12%;
+  height: 14%;
+  background: #2a3344;
+  border-radius: 50%;
+}
+.eye.left {
+  left: 26%;
+}
+.eye.right {
+  right: 26%;
+}
+.eye::after {
+  content: '';
+  position: absolute;
+  top: 18%;
+  left: 22%;
+  width: 35%;
+  height: 35%;
+  background: #fff;
+  border-radius: 50%;
+}
+
+.blush {
+  position: absolute;
+  top: 54%;
+  width: 14%;
+  height: 8%;
+  border-radius: 50%;
+  background: color-mix(in srgb, #ff8fa3 50%, transparent);
+}
+.blush.left {
+  left: 14%;
+}
+.blush.right {
+  right: 14%;
+}
+
+.dragon-wing {
+  position: absolute;
+  top: 34%;
+  width: 28%;
+  height: 34%;
+  background: color-mix(in srgb, var(--c-secondary) 70%, white);
+  border-radius: 10% 80% 60% 40%;
+  opacity: 0.9;
+}
+.dragon-wing.left {
+  left: -4%;
+  transform: rotate(-24deg);
+}
+.dragon-wing.right {
+  right: -4%;
+  transform: scaleX(-1) rotate(-24deg);
+}
+
+.dragon-tail {
+  position: absolute;
+  bottom: 8%;
+  right: 4%;
+  width: 34%;
+  height: 14%;
+  background: var(--c-secondary);
+  border-radius: 40% 60% 50% 50%;
+  transform: rotate(18deg);
+}
+
+.dragon-crown {
+  position: absolute;
+  top: -2%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 28%;
+  height: 14%;
+  background: linear-gradient(90deg, #e8c547, #fff3b0, #e8c547);
+  clip-path: polygon(0 100%, 20% 0, 40% 70%, 50% 0, 60% 70%, 80% 0, 100% 100%);
+}
+
+.is-silhouette .sprite-body {
+  filter: brightness(0) opacity(0.55);
+}
+.is-silhouette .sprite-glow {
+  opacity: 0.25;
+}
+
+.is-reacting .sprite-body {
+  animation: hop 0.45s ease;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
+@keyframes egg-sway {
+  0%,
+  100% {
+    transform: rotate(-3deg);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
+}
+
+@keyframes hop {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-10px) scale(1.04);
+  }
+}
