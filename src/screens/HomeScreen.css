@@ -105,10 +105,12 @@
   appearance: none;
   border: 0;
   background: transparent;
-  padding: 8px;
+  padding: 4px 8px 8px;
+  min-height: 280px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
   cursor: pointer;
   font-family: inherit;
