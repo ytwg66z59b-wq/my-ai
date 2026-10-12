@@ -1,5 +1,11 @@
 const CACHE = 'dragon-days-v1'
-const ASSETS = ['/', '/index.html', '/manifest.webmanifest', '/favicon.svg']
+const BASE = '/my-ai/'
+const ASSETS = [
+  BASE,
+  `${BASE}index.html`,
+  `${BASE}manifest.webmanifest`,
+  `${BASE}favicon.svg`,
+]
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)))
