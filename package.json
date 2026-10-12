@@ -1,14 +1,15 @@
 {
-  "name": "bunsho-wake-maker",
+  "name": "dragon-days",
   "private": true,
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "node --import tsx --test src/*.test.ts"
+    "test": "node --import tsx --test src/**/*.test.ts src/lib/**/*.test.ts",
+    "deploy:pages": "npm run build && node scripts/deploy-pages.mjs"
   },
   "dependencies": {
     "react": "^19.2.8",

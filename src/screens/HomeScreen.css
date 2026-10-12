@@ -1,0 +1,259 @@
+.home-screen {
+  position: relative;
+  padding: 18px 18px 28px;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.home-brand {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  text-align: center;
+  padding-top: 4px;
+}
+
+.brand-mark {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.7rem, 7vw, 2.15rem);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+  animation: brand-in 0.7s ease both;
+}
+
+.home-hero-plane {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.sky-layer {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 70% 10%, rgba(255, 236, 180, 0.55), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 15% 20%, rgba(160, 230, 220, 0.45), transparent 55%),
+    linear-gradient(180deg, #c8ebe6 0%, #e7f6f2 42%, #f7f3e8 100%);
+}
+
+.hill-layer {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  bottom: 18%;
+  height: 28%;
+  background: radial-gradient(ellipse at center, rgba(90, 168, 140, 0.28), transparent 70%);
+  filter: blur(2px);
+  animation: drift 12s ease-in-out infinite alternate;
+}
+
+.home-panel {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  margin-top: 4px;
+}
+
+.stat-label {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+}
+
+.stat-today {
+  margin: 2px 0 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+  animation: pop-num 0.35s ease;
+}
+
+.stat-num {
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 14vw, 3.8rem);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.stat-unit {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.stat-total {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.creature-stage {
+  position: relative;
+  z-index: 2;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 4px 8px 8px;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+}
+
+.creature-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.creature-sub {
+  margin: 2px 0 8px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.creature-meta {
+  text-align: center;
+  min-width: 220px;
+}
+
+.growth-bar {
+  position: relative;
+  height: 18px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 8%, white);
+  overflow: hidden;
+}
+
+.growth-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-deep));
+  transition: width 0.35s ease;
+}
+
+.growth-text {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.growth-done {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--accent-deep);
+}
+
+.reaction-line {
+  position: relative;
+  z-index: 2;
+  margin: 0;
+  min-height: 1.4em;
+  font-size: 0.92rem;
+  color: var(--ink-soft);
+  animation: soft-in 0.35s ease;
+}
+
+.effort-btn {
+  position: relative;
+  z-index: 2;
+  margin-top: 6px;
+  width: min(100%, 320px);
+  min-height: 64px;
+  border: 0;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #3ec6b0, #2a9f8f);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  box-shadow: 0 10px 0 #1f6f64;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.effort-btn:active {
+  transform: translateY(6px);
+  box-shadow: 0 4px 0 #1f6f64;
+}
+
+.effort-plus {
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.effort-hint {
+  position: relative;
+  z-index: 2;
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.empty-active {
+  position: relative;
+  z-index: 2;
+}
+
+@keyframes brand-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pop-num {
+  from {
+    transform: scale(1.08);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes soft-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes drift {
+  from {
+    transform: translateX(-2%);
+  }
+  to {
+    transform: translateX(2%);
+  }
+}

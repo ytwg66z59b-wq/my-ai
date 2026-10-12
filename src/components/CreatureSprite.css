@@ -1,0 +1,275 @@
+.creature-sprite {
+  position: relative;
+  display: grid;
+  place-items: center;
+  --size: 96px;
+  width: var(--size);
+  height: var(--size);
+  overflow: visible;
+}
+
+.creature-sprite.size-sm {
+  --size: 64px;
+}
+.creature-sprite.size-md {
+  --size: 110px;
+}
+.creature-sprite.size-lg {
+  --size: 156px;
+}
+.creature-sprite.size-xl {
+  --size: 210px;
+}
+
+/* Stage presence: later forms fill more of the frame */
+.creature-sprite.stage-egg .sprite-body {
+  width: 72%;
+  height: 84%;
+}
+.creature-sprite.stage-juvenile .sprite-body {
+  width: 70%;
+  height: 70%;
+}
+.creature-sprite.stage-growth .sprite-body {
+  width: 86%;
+  height: 86%;
+}
+.creature-sprite.stage-adult .sprite-body {
+  width: 96%;
+  height: 96%;
+}
+.creature-sprite.stage-apex .sprite-body {
+  width: 100%;
+  height: 100%;
+}
+
+.creature-sprite.size-md.stage-adult {
+  --size: 124px;
+}
+.creature-sprite.size-md.stage-apex {
+  --size: 136px;
+}
+.creature-sprite.size-xl.stage-growth {
+  --size: 230px;
+}
+.creature-sprite.size-xl.stage-adult {
+  --size: 255px;
+}
+.creature-sprite.size-xl.stage-apex {
+  --size: 280px;
+}
+
+.sprite-aura {
+  position: absolute;
+  inset: 6%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--c-accent) 65%, transparent),
+    transparent 70%
+  );
+  z-index: 0;
+  opacity: 0.4;
+  animation: aura-pulse 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.stage-growth .sprite-aura {
+  opacity: 0.55;
+}
+.stage-adult .sprite-aura {
+  inset: 0;
+  opacity: 0.7;
+}
+.stage-apex .sprite-aura {
+  inset: -8%;
+  opacity: 0.9;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--c-accent) 75%, transparent) 0%,
+    color-mix(in srgb, var(--c-secondary) 35%, transparent) 45%,
+    transparent 72%
+  );
+}
+
+.sprite-body {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  overflow: visible;
+}
+
+.sprite-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  display: block;
+  filter: drop-shadow(0 8px 12px color-mix(in srgb, #1d3340 18%, transparent));
+}
+
+.stage-adult .sprite-svg {
+  filter: drop-shadow(0 10px 16px color-mix(in srgb, #1d3340 22%, transparent))
+    drop-shadow(0 0 10px color-mix(in srgb, var(--c-secondary) 28%, transparent));
+}
+
+.stage-apex .sprite-svg {
+  filter: drop-shadow(0 12px 20px color-mix(in srgb, #1d3340 28%, transparent))
+    drop-shadow(0 0 18px color-mix(in srgb, var(--c-accent) 45%, transparent));
+}
+
+/* Motions on SVG parts */
+.anim-flap {
+  transform-origin: 70% 50%;
+  animation: flap-l 2.6s ease-in-out infinite;
+}
+.anim-flap-r {
+  transform-origin: 30% 50%;
+  animation: flap-r 2.6s ease-in-out infinite;
+}
+.anim-sway {
+  transform-origin: 80% 40%;
+  animation: sway-l 2.2s ease-in-out infinite;
+}
+.anim-sway-r {
+  transform-origin: 20% 40%;
+  animation: sway-r 2.2s ease-in-out infinite;
+}
+.anim-twinkle {
+  animation: twinkle 1.5s ease-in-out infinite;
+}
+.anim-rise {
+  animation: rise 1.6s ease-in-out infinite;
+}
+.anim-spin {
+  transform-origin: 110px 115px;
+  animation: spin 14s linear infinite;
+}
+.anim-halo {
+  transform-origin: 110px 38px;
+  animation: halo 5s ease-in-out infinite;
+}
+.anim-orbit {
+  animation: twinkle 1.8s ease-in-out infinite;
+}
+.egg-inner-glow {
+  animation: egg-glow 2s ease-in-out infinite;
+}
+
+.is-silhouette .sprite-body {
+  filter: brightness(0) opacity(0.55);
+}
+.is-silhouette .sprite-aura {
+  opacity: 0.15;
+}
+
+.is-reacting .sprite-body {
+  animation: hop 0.45s ease;
+}
+
+@keyframes aura-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.85;
+  }
+}
+
+@keyframes flap-l {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-7deg);
+  }
+}
+@keyframes flap-r {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(7deg);
+  }
+}
+@keyframes sway-l {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(8deg);
+  }
+}
+@keyframes sway-r {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-8deg);
+  }
+}
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes rise {
+  0%,
+  100% {
+    transform: translateY(4px);
+    opacity: 0.45;
+  }
+  50% {
+    transform: translateY(-8px);
+    opacity: 1;
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes halo {
+  0%,
+  100% {
+    transform: scaleX(1) rotate(-4deg);
+  }
+  50% {
+    transform: scaleX(1.08) rotate(4deg);
+  }
+}
+@keyframes egg-glow {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+@keyframes hop {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-14px) scale(1.04);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .creature-sprite * {
+    animation: none !important;
+  }
+}
