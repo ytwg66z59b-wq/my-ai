@@ -1,5 +1,5 @@
-const CACHE = 'dragon-days-v1'
-const BASE = '/my-ai/'
+const CACHE = 'dragon-days-v2'
+const BASE = '/my-ai/dragon-days/'
 const ASSETS = [
   BASE,
   `${BASE}index.html`,

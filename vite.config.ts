@@ -4,6 +4,7 @@ import { defineConfig } from 'vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // GitHub Pages project site: https://<user>.github.io/my-ai/
-  base: '/my-ai/',
+  // Dedicated URL (do not overwrite コマPDF at site root):
+  // https://ytwg66z59b-wq.github.io/my-ai/dragon-days/
+  base: '/my-ai/dragon-days/',
 })

@@ -2,6 +2,15 @@
 
 毎日の「頑張った！」が卵を孵し、幻獣を育てるスマホ対応 Web アプリです。
 
+## 公開URL
+
+| アプリ | URL |
+| --- | --- |
+| **DRAGON DAYS** | https://ytwg66z59b-wq.github.io/my-ai/dragon-days/ |
+| コマPDF（別アプリ） | https://ytwg66z59b-wq.github.io/my-ai/ |
+
+GitHub Pages では `/dragon-days/` 配下にだけデプロイし、ルートのコマPDFは上書きしません。
+
 ## 開発
 
 ```bash
@@ -9,12 +18,14 @@ npm install
 npm run dev
 ```
 
-## テスト / ビルド
+開発サーバーは `http://127.0.0.1:5173/my-ai/dragon-days/` で開きます。
+
+## テスト / ビルド / 公開
 
 ```bash
 npm test
 npm run build
-npm run preview
+npm run deploy:pages
 ```
 
 ## 主な機能

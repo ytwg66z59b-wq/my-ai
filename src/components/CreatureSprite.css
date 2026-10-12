@@ -97,6 +97,7 @@
   z-index: 1;
   display: grid;
   place-items: center;
+  overflow: visible;
 }
 
 .sprite-svg {
@@ -104,6 +105,17 @@
   height: 100%;
   overflow: visible;
   display: block;
+  filter: drop-shadow(0 8px 12px color-mix(in srgb, #1d3340 18%, transparent));
+}
+
+.stage-adult .sprite-svg {
+  filter: drop-shadow(0 10px 16px color-mix(in srgb, #1d3340 22%, transparent))
+    drop-shadow(0 0 10px color-mix(in srgb, var(--c-secondary) 28%, transparent));
+}
+
+.stage-apex .sprite-svg {
+  filter: drop-shadow(0 12px 20px color-mix(in srgb, #1d3340 28%, transparent))
+    drop-shadow(0 0 18px color-mix(in srgb, var(--c-accent) 45%, transparent));
 }
 
 /* Motions on SVG parts */

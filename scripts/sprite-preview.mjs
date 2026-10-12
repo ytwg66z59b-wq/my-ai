@@ -53,7 +53,9 @@ const browser = await puppeteer.launch({
 })
 
 const page = await browser.newPage()
-await page.goto('http://127.0.0.1:5173/my-ai/', { waitUntil: 'networkidle0' }).catch(async () => {
+await page.goto('http://127.0.0.1:5173/my-ai/dragon-days/', {
+  waitUntil: 'networkidle0',
+}).catch(async () => {
   await page.goto('http://127.0.0.1:5173/', { waitUntil: 'networkidle0' })
 })
 
