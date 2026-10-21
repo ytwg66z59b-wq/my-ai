@@ -3,16 +3,21 @@ import puppeteer from 'puppeteer-core'
 const browser = await puppeteer.launch({
   executablePath: '/usr/local/bin/google-chrome',
   headless: true,
-  args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=390,844'],
-  defaultViewport: { width: 390, height: 844, isMobile: true, hasTouch: true },
+  args: [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--window-size=1280,900',
+    '--use-fake-ui-for-media-stream',
+    '--use-fake-device-for-media-stream',
+  ],
+  defaultViewport: { width: 1280, height: 900 },
 })
 
 const page = await browser.newPage()
-await page.goto('http://127.0.0.1:5173/', { waitUntil: 'networkidle0' })
-
-// Grant clipboard permission
 const context = browser.defaultBrowserContext()
-await context.overridePermissions('http://127.0.0.1:5173', ['clipboard-read', 'clipboard-write'])
+await context.overridePermissions('http://127.0.0.1:5173', ['microphone'])
+
+await page.goto('http://127.0.0.1:5173/', { waitUntil: 'networkidle0' })
 
 const results = []
 
@@ -21,80 +26,49 @@ function ok(name, pass, detail = '') {
   console.log(`${pass ? 'PASS' : 'FAIL'}: ${name}${detail ? ' — ' + detail : ''}`)
 }
 
-// Empty state
-const empty = await page.$eval('.empty-state', (el) => el.textContent)
-ok('empty state visible', empty.includes('きれいに分けてくれるよ'))
+const brand = await page.$eval('.brand-hero', (el) => el.textContent?.trim())
+ok('hero brand is Halo', brand === 'Halo', brand)
 
-// Type text
-const sample = 'これはテスト文章です長い文章を6文字ずつに分けてみようね'
-await page.click('.text-input')
-await page.type('.text-input', sample)
+const studioLink = await page.$('a[href="#studio"]')
+ok('studio CTA exists', Boolean(studioLink))
+
+await page.click('a.btn-primary[href="#studio"]')
+await page.waitForSelector('#studio')
+
+await page.click('[data-testid="inject-demo"]')
 await page.waitForFunction(
-  (n) => document.querySelector('.char-live')?.textContent?.includes(String(n)),
-  {},
-  28,
+  () => document.querySelectorAll('[data-testid="transcript"] li').length >= 3,
 )
-const countText = await page.$eval('.char-live', (el) => el.textContent)
-ok('char counter', countText.includes('28'), countText)
 
-// Click 6文字 preset
-await page.click('button.btn-preset:nth-of-type(1)')
+const summary = await page.$eval('[data-testid="notes-summary"]', (el) => el.textContent || '')
+ok('notes summary generated', summary.includes('会議のポイント'), summary)
+
+const actions = await page.$$eval('[data-testid="action-items"] li', (els) =>
+  els.map((el) => el.textContent || ''),
+)
+ok('action items extracted', actions.length >= 1, actions.join(' | '))
+
+await page.click('[data-testid="start-meeting"]')
 await page.waitForFunction(() => {
-  const active = document.querySelector('.btn-preset.is-active')
-  return active && active.textContent.includes('6文字')
+  const status = document.querySelector('.studio-status')?.textContent || ''
+  return status.includes('マイク稼働中') || status.includes('聞き取り中')
 })
-ok('preset 6 active', true)
+ok('meeting start updates status', true)
 
-const lineCount = await page.$$eval('.result-item', (els) => els.length)
-ok('split into lines (6 chars)', lineCount === Math.ceil(28 / 6), `lines=${lineCount}`)
+const ncOn = await page.$eval('[data-testid="toggle-nc"]', (el) => el.classList.contains('is-on'))
+ok('NC defaults on', ncOn)
 
-const firstLine = await page.$eval('.result-item .result-text', (el) => el.textContent)
-ok('first line is 6 chars', [...firstLine].length === 6, firstLine)
-
-// Copy one line
-await page.click('.result-item .btn-copy')
-await page.waitForFunction(() =>
-  document.querySelector('.result-item .btn-copy')?.textContent?.includes('コピーしたよ'),
-)
-ok('copy feedback', true)
-const clip = await page.evaluate(() => navigator.clipboard.readText())
-ok('clipboard has line', clip === firstLine, clip)
-
-await page.waitForFunction(
-  () => document.querySelector('.result-item .btn-copy')?.textContent?.includes('📋 コピー'),
-  { timeout: 3000 },
-)
-ok('copy button resets', true)
-
-// Copy all
-await page.click('.btn-copy-all')
-await page.waitForFunction(() =>
-  document.querySelector('.btn-copy-all')?.textContent?.includes('ぜんぶコピーしたよ'),
-)
-ok('copy-all feedback', true)
-
-// Clear
-await page.click('.btn-clear')
-await page.waitForSelector('.empty-state')
-const cleared = await page.$eval('.text-input', (el) => el.value)
-ok('clear works', cleared === '')
-
-// Stepper
-await page.type('.text-input', 'あいうえおかきくけこ')
-await page.click('.btn-stepper[aria-label="1文字増やす"]')
+await page.click('[data-testid="toggle-nc"]')
 await page.waitForFunction(() => {
-  const v = document.querySelector('.number-input')?.value
-  return v === '7'
+  const btn = document.querySelector('[data-testid="toggle-nc"]')
+  return btn && !btn.classList.contains('is-on') && btn.textContent?.includes('OFF')
 })
-ok('stepper +', true)
+ok('NC toggles off', true)
 
-await page.click('button.btn-preset:nth-of-type(3)') // 10文字
-await page.waitForFunction(() =>
-  document.querySelector('.btn-preset.is-active')?.textContent?.includes('10文字'),
-)
-ok('preset 10', true)
+await page.screenshot({ path: '/opt/cursor/artifacts/halo_studio_desktop.png', fullPage: true })
 
-await page.screenshot({ path: '/opt/cursor/artifacts/mobile_interaction_verified.png', fullPage: true })
+await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true })
+await page.screenshot({ path: '/opt/cursor/artifacts/halo_studio_mobile.png', fullPage: true })
 
 const failed = results.filter((r) => !r.pass)
 console.log(`\n${results.length - failed.length}/${results.length} passed`)

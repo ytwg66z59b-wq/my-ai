@@ -1,6 +1,10 @@
-# my-ai — ぶんしょう分けメーカー
+# Halo — Voice AI for meetings
 
-長い文章を好きな文字数で分ける、かわいくて親しみやすい Web アプリです。
+[Krisp.ai](https://krisp.ai/) にインスパイアした、ブラウザ完結の Voice AI ミーティング Web アプリです。
+
+- ノイズキャンセル（ブラウザ制約 + Web Audio フィルタ）
+- リアルタイム文字起こし（Web Speech API）
+- AI ミーティングノート（要点・アクション抽出）
 
 ## 開発
 
@@ -9,9 +13,10 @@ npm install
 npm run dev
 ```
 
-## ビルド
+## ビルド / テスト
 
 ```bash
 npm run build
-npm run preview
+npm test
+npm run lint
 ```
