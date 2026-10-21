@@ -61,6 +61,9 @@ function App() {
 
       <main id="top">
         <section className="hero" aria-labelledby="hero-brand">
+          <div className="hero-field" aria-hidden="true">
+            <Waveform level={0.42} active />
+          </div>
           <div className="hero-copy">
             <h1 id="hero-brand" className="brand-hero">
               Halo
@@ -76,17 +79,6 @@ function App() {
               <a className="btn btn-secondary" href="#powers">
                 できることを見る
               </a>
-            </div>
-          </div>
-
-          <div className="hero-visual" aria-hidden="true">
-            <div className="hero-plane">
-              <div className="hero-plane-label">Live voice field</div>
-              <Waveform level={0.35} active />
-              <div className="hero-plane-meta">
-                <span>NC ON</span>
-                <span>Transcript ready</span>
-              </div>
             </div>
           </div>
         </section>

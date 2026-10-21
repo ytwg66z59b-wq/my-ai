@@ -195,7 +195,15 @@ export function useVoiceStudio() {
     }
 
     rec.onerror = (event) => {
-      if (event.error === 'aborted' || event.error === 'no-speech') return
+      // Fake/headless media and transient capture issues are expected in demos.
+      if (
+        event.error === 'aborted' ||
+        event.error === 'no-speech' ||
+        event.error === 'audio-capture' ||
+        event.error === 'network'
+      ) {
+        return
+      }
       setError(`音声認識エラー: ${event.error}`)
     }
 
