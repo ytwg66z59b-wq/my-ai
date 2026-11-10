@@ -1,286 +1,167 @@
-import { useEffect, useId, useRef, useState } from 'react'
-import { countChars, splitText } from './splitText'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { KOKORO_WORDS, shuffleWords, type KokoroWord } from './words'
 import './App.css'
 
-const PRESETS = [6, 8, 10, 12] as const
-const MIN_CHARS = 1
-const MAX_CHARS = 100
-const COPY_RESET_MS = 2000
+type Phase = 'idle' | 'impact' | 'show' | 'done'
 
 function App() {
-  const [text, setText] = useState('')
-  const [charsPerLine, setCharsPerLine] = useState(8)
-  const [copiedIndex, setCopiedIndex] = useState<number | null>(null)
-  const [copiedAll, setCopiedAll] = useState(false)
-  const [burstKey, setBurstKey] = useState(0)
-  const copyTimer = useRef<number | null>(null)
-  const copyAllTimer = useRef<number | null>(null)
-  const textareaId = useId()
-  const numberId = useId()
+  const [deck, setDeck] = useState<KokoroWord[]>(() => shuffleWords(KOKORO_WORDS))
+  const [index, setIndex] = useState(-1)
+  const [phase, setPhase] = useState<Phase>('idle')
+  const [animKey, setAnimKey] = useState(0)
+  const timers = useRef<number[]>([])
 
-  const charCount = countChars(text)
-  const lines = splitText(text, charsPerLine)
+  const current = index >= 0 ? deck[index] : null
+  const remaining = deck.length - Math.max(0, index + 1)
 
   useEffect(() => {
     return () => {
-      if (copyTimer.current) window.clearTimeout(copyTimer.current)
-      if (copyAllTimer.current) window.clearTimeout(copyAllTimer.current)
+      for (const id of timers.current) window.clearTimeout(id)
     }
   }, [])
 
-  function clampChars(value: number) {
-    if (Number.isNaN(value)) return charsPerLine
-    return Math.min(MAX_CHARS, Math.max(MIN_CHARS, value))
+  function clearTimers() {
+    for (const id of timers.current) window.clearTimeout(id)
+    timers.current = []
   }
 
-  function handleCharsChange(raw: string) {
-    const digits = raw.replace(/[^\d]/g, '')
-    if (digits === '') {
-      setCharsPerLine(MIN_CHARS)
+  function schedule(fn: () => void, ms: number) {
+    const id = window.setTimeout(fn, ms)
+    timers.current.push(id)
+  }
+
+  function revealNext() {
+    if (phase === 'impact') return
+
+    if (phase === 'done' || (phase === 'show' && remaining <= 0)) {
+      clearTimers()
+      setDeck(shuffleWords(KOKORO_WORDS))
+      setIndex(-1)
+      setPhase('idle')
+      setAnimKey((k) => k + 1)
       return
     }
-    setCharsPerLine(clampChars(Number(digits)))
+
+    const nextIndex = index + 1
+    if (nextIndex >= deck.length) return
+
+    clearTimers()
+    setIndex(nextIndex)
+    setPhase('impact')
+    setAnimKey((k) => k + 1)
+
+    schedule(() => {
+      setPhase('show')
+      if (nextIndex >= deck.length - 1) {
+        schedule(() => setPhase('done'), 900)
+      }
+    }, 420)
   }
 
-  async function copyText(value: string) {
-    try {
-      await navigator.clipboard.writeText(value)
-      return true
-    } catch {
-      // Fallback for environments without clipboard permission
-      const ta = document.createElement('textarea')
-      ta.value = value
-      ta.setAttribute('readonly', '')
-      ta.style.position = 'fixed'
-      ta.style.left = '-9999px'
-      document.body.appendChild(ta)
-      ta.select()
-      const ok = document.execCommand('copy')
-      document.body.removeChild(ta)
-      return ok
+  function handleActivate() {
+    revealNext()
+  }
+
+  function handleKeyDown(e: KeyboardEvent<HTMLElement>) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      revealNext()
     }
   }
 
-  async function handleCopyLine(line: string, index: number) {
-    const ok = await copyText(line)
-    if (!ok) return
-    setCopiedIndex(index)
-    setBurstKey((k) => k + 1)
-    if (copyTimer.current) window.clearTimeout(copyTimer.current)
-    copyTimer.current = window.setTimeout(() => setCopiedIndex(null), COPY_RESET_MS)
-  }
-
-  async function handleCopyAll() {
-    if (lines.length === 0) return
-    const ok = await copyText(lines.join('\n'))
-    if (!ok) return
-    setCopiedAll(true)
-    setBurstKey((k) => k + 1)
-    if (copyAllTimer.current) window.clearTimeout(copyAllTimer.current)
-    copyAllTimer.current = window.setTimeout(() => setCopiedAll(false), COPY_RESET_MS)
-  }
-
-  function handleClear() {
-    setText('')
-    setCopiedIndex(null)
-    setCopiedAll(false)
-  }
-
-  function bumpChars(delta: number) {
-    setCharsPerLine((prev) => clampChars(prev + delta))
-  }
+  const hint =
+    phase === 'idle'
+      ? '画面をタップして、こころの言葉を受け取る'
+      : phase === 'done'
+        ? 'もう一度タップで、はじめから'
+        : remaining > 0
+          ? 'タップで次の言葉'
+          : '余韻を味わって…'
 
   return (
-    <div className="page">
-      <div className="bg-blobs" aria-hidden="true">
-        <span className="blob blob-pink" />
-        <span className="blob blob-blue" />
-        <span className="blob blob-yellow" />
+    <div
+      className={`shrine phase-${phase}`}
+      role="button"
+      tabIndex={0}
+      aria-label={hint}
+      onClick={handleActivate}
+      onKeyDown={handleKeyDown}
+    >
+      <div className="atmosphere" aria-hidden="true">
+        <div className="sky" />
+        <div className="mist mist-a" />
+        <div className="mist mist-b" />
+        <div className="forest" />
+        <div className="glow" />
+        <svg className="torii" viewBox="0 0 400 220" preserveAspectRatio="xMidYMax meet">
+          <path
+            className="torii-fill"
+            d="M48 72h304v14H48zm28 0V200h22V86h204v114h22V72zm-42-28h332v18H34zm16 10h300v12H50z"
+          />
+          <path
+            className="torii-stroke"
+            d="M34 44h332M50 54h300M48 72h304M76 72v128M302 72v128"
+            fill="none"
+          />
+        </svg>
+        <div className="ground" />
       </div>
 
-      <header className="hero">
-        <div className="decor decor-star" aria-hidden="true">
-          ✦
-        </div>
-        <div className="decor decor-pencil" aria-hidden="true">
-          ✏️
-        </div>
-        <div className="decor decor-heart" aria-hidden="true">
-          ♡
-        </div>
-        <div className="decor decor-paper" aria-hidden="true">
-          📄
-        </div>
-
-        <p className="eyebrow">かわいく分けちゃうよ</p>
-        <h1 className="title">
-          <span className="title-icon" aria-hidden="true">
-            ✂️
-          </span>
-          ぶんしょう分けメーカー
-        </h1>
-        <p className="subtitle">長い文章を、好きな文字数で分けよう！</p>
+      <header className="brand">
+        <p className="brand-mark">心の社</p>
+        <p className="brand-sub">七日のこころ</p>
       </header>
 
-      <main className="main">
-        <section className="card input-card" aria-labelledby="step1-heading">
-          <div className="card-head">
-            <h2 id="step1-heading" className="step-title">
-              <span className="step-badge">①</span>
-              文章を入れてね <span aria-hidden="true">✏️</span>
-            </h2>
-            <button
-              type="button"
-              className="btn btn-clear"
-              onClick={handleClear}
-              disabled={!text}
-            >
-              🗑️ クリア
-            </button>
-          </div>
-
-          <label className="sr-only" htmlFor={textareaId}>
-            分けたい文章
-          </label>
-          <textarea
-            id={textareaId}
-            className="text-input"
-            placeholder="ここに長い文章を書いてね…"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={6}
-            inputMode="text"
-            autoComplete="off"
-            spellCheck={false}
-          />
-          <p className="char-live" aria-live="polite">
-            いま <strong>{charCount}</strong> 文字 入ってるよ！
-          </p>
-        </section>
-
-        <section className="card setting-card" aria-labelledby="step2-heading">
-          <h2 id="step2-heading" className="step-title">
-            <span className="step-badge step-badge-blue">②</span>
-            1行を何文字にする？ <span aria-hidden="true">🔢</span>
-          </h2>
-
-          <div className="number-row">
-            <button
-              type="button"
-              className="btn btn-stepper"
-              onClick={() => bumpChars(-1)}
-              aria-label="1文字減らす"
-            >
-              −
-            </button>
-            <div className="number-box">
-              <label className="sr-only" htmlFor={numberId}>
-                1行あたりの文字数
-              </label>
-              <input
-                id={numberId}
-                className="number-input"
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={charsPerLine}
-                onChange={(e) => handleCharsChange(e.target.value)}
-                onBlur={() => setCharsPerLine((v) => clampChars(v))}
-              />
-              <span className="number-unit">文字</span>
+      <main className="stage" aria-live="polite">
+        {phase === 'idle' && (
+          <div key={`idle-${animKey}`} className="idle-panel">
+            <div className="shimenawa" aria-hidden="true">
+              <span />
+              <span />
+              <span />
             </div>
-            <button
-              type="button"
-              className="btn btn-stepper"
-              onClick={() => bumpChars(1)}
-              aria-label="1文字増やす"
-            >
-              ＋
-            </button>
+            <p className="idle-lead">今日の清らかな言葉を、ひとつずつ。</p>
+            <p className="tap-cue">
+              <span className="tap-ring" aria-hidden="true" />
+              タップ
+            </p>
           </div>
+        )}
 
-          <div className="presets" role="group" aria-label="文字数プリセット">
-            {PRESETS.map((n) => (
-              <button
-                key={n}
-                type="button"
-                className={`btn btn-preset${charsPerLine === n ? ' is-active' : ''}`}
-                onClick={() => setCharsPerLine(n)}
-                aria-pressed={charsPerLine === n}
-              >
-                {n}文字
-              </button>
-            ))}
+        {phase === 'impact' && (
+          <div key={`impact-${animKey}`} className="impact" aria-hidden="true">
+            <span className="impact-flash" />
+            <span className="impact-word">ドン！</span>
+            <span className="impact-ring" />
           </div>
-        </section>
+        )}
 
-        <section className="card result-card" aria-labelledby="step3-heading">
-          <h2 id="step3-heading" className="step-title result-heading">
-            <span className="step-badge step-badge-yellow">③</span>
-            できあがり！ <span aria-hidden="true">🎉</span>
-          </h2>
-
-          {lines.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-illus" aria-hidden="true">
-                <span>✨</span>
-                <span>📝</span>
-                <span>✨</span>
-              </div>
-              <p>
-                ここに文章を入れると、
-                <br />
-                きれいに分けてくれるよ ✨
-              </p>
-            </div>
-          ) : (
-            <>
-              <button
-                type="button"
-                className={`btn btn-copy-all${copiedAll ? ' is-success' : ''}`}
-                onClick={handleCopyAll}
-              >
-                {copiedAll ? '🎉 ぜんぶコピーしたよ！' : '📋 ぜんぶコピー！'}
-              </button>
-              <p className="result-summary" aria-live="polite">
-                全部で <strong>{lines.length}</strong> 行になったよ！
-              </p>
-              <ul className="result-list">
-                {lines.map((line, index) => {
-                  const isCopied = copiedIndex === index
-                  return (
-                    <li
-                      key={`${index}-${line}`}
-                      className="result-item"
-                      style={{ animationDelay: `${Math.min(index, 12) * 40}ms` }}
-                    >
-                      <p className="result-text">{line}</p>
-                      <button
-                        type="button"
-                        className={`btn btn-copy${isCopied ? ' is-success' : ''}`}
-                        onClick={() => handleCopyLine(line, index)}
-                      >
-                        {isCopied ? '✓ コピーしたよ！' : '📋 コピー'}
-                      </button>
-                    </li>
-                  )
-                })}
-              </ul>
-            </>
-          )}
-        </section>
+        {(phase === 'show' || phase === 'done') && current && (
+          <article key={`word-${animKey}`} className="word-card">
+            <p className="word-reading">{current.reading}</p>
+            <h1 className="word-title">{current.title}</h1>
+            <p className="word-body">{current.body}</p>
+          </article>
+        )}
       </main>
 
-      {burstKey > 0 && (
-        <div key={burstKey} className="sparkle-burst" aria-hidden="true">
-          <span>✦</span>
-          <span>★</span>
-          <span>✦</span>
+      <footer className="chrome">
+        <div className="progress" aria-hidden="true">
+          {deck.map((word, i) => (
+            <span
+              key={word.id}
+              className={`bead${i <= index && phase !== 'idle' ? ' is-lit' : ''}${
+                i === index && (phase === 'show' || phase === 'done') ? ' is-now' : ''
+              }`}
+            />
+          ))}
         </div>
-      )}
-
-      <footer className="footer">
-        <p>文章を入れて、数字を決めたら、ポンっと分けてくれるよ</p>
+        <p className="hint">{hint}</p>
+        {phase !== 'idle' && (
+          <p className="count">
+            {Math.min(index + 1, deck.length)} / {deck.length}
+          </p>
+        )}
       </footer>
     </div>
   )
